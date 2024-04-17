@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.AgreementMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.AgreementDO" id="Agreement">
+        <result property="agreementId" column="agreement_id" jdbcType="VARCHAR"/>
+        <result property="GMTCreate" column="gmt_create" jdbcType="VARCHAR"/>
+        <result property="GMTModified" column="gmt_modified" jdbcType="VARCHAR"/>
+        <result property="content" column="content" jdbcType="VARCHAR"/>
+        <result property="effectStartTime" column="effect_start_time" jdbcType="VARCHAR"/>
+        <result property="effectEndTime" column="effect_end_time" jdbcType="VARCHAR"/>
+        <result property="GMTSign" column="gmt_sign" jdbcType="VARCHAR"/>
+        <result property="purchaseId" column="purchase_id" jdbcType="VARCHAR"/>
+        <result property="farmerId" column="farmer_id" jdbcType="VARCHAR"/>
+        <result property="status" column="status" jdbcType="INTEGER"/>
+        <result property="version" column="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <select id="query" resultMap="Agreement">
+        select agreement_id, gmt_create, gmt_modified, content, effect_start_time, effect_end_time, gmt_sign, purchase_id, farmer_id, status, version
+        from agreement
+        where agreement_id = #{agreementId}
+    </select>
+
+    <insert id="insertAgreement">
+        insert into agreement(
+        agreement_id, gmt_create, content, effect_start_time, effect_end_time, purchase_id, farmer_id, status, version
+        ) values (
+        #{agreementId}, #{GMTCreate}, #{content}, #{effectStartTime}, #{effectEndTime}, #{purchaseId}, #{farmerId}, #{status}, #{version}
+        )
+    </insert>
+
+    <select id="queryByXiaoer" resultMap="Agreement">
+        select agreement_id, gmt_create, gmt_modified, content, effect_start_time, effect_end_time, gmt_sign, purchase_id, farmer_id, status, version
+        from agreement
+        where purchase_id = #{userId}
+    </select>
+
+    <select id="queryBySupplier" resultMap="Agreement">
+        select agreement_id, gmt_create, gmt_modified, content, effect_start_time, effect_end_time, gmt_sign, purchase_id, farmer_id, status, version
+        from agreement
+        where farmer_id = #{userId}
+    </select>
+
+    <select id="countByPurchaseId" resultType="java.lang.Integer">
+        select count(*)
+        from agreement
+        where purchase_id = #{purchaseId}
+    </select>
+
+    <update id="update">
+        update agreement
+        <set>
+            <if test="GMTModified != null">
+                gmt_modified = #{GMTModified},
+            </if>
+            <if test="content != null">
+                content = #{content},
+            </if>
+            <if test="effectStartTime != null">
+                effect_start_time = #{effectStartTime},
+            </if>
+            <if test="effectEndTime != null">
+                effect_end_time = #{effectEndTime},
+            </if>
+            <if test="GMTSign != null">
+                gmt_sign = #{GMTSign},
+            </if>
+            <if test="purchaseId != null">
+                purchase_id = #{purchaseId},
+            </if>
+            <if test="farmerId != null">
+                farmer_id = #{farmerId},
+            </if>
+            <if test="status != 0">
+                status = #{status},
+            </if>
+            version = version+1,
+        </set>
+        where agreement_id = #{agreementId}
+    </update>
+</mapper>

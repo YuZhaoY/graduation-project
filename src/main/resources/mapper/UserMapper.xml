@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.UserMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.LoginInfoDO" id="LoginInfo">
+        <result property="password" column="password" jdbcType="VARCHAR"/>
+        <result property="username" column="username" jdbcType="VARCHAR"/>
+        <result property="role" column="role" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <resultMap type="com.scu.stu.pojo.DO.UserInfoDO" id="UserInfoDO">
+        <result property="userId" column="userId" jdbcType="VARCHAR"/>
+        <result property="introduction" column="introduction" jdbcType="VARCHAR"/>
+        <result property="avatar" column="avatar" jdbcType="VARCHAR"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="role" column="role" jdbcType="INTEGER"/>
+        <result property="age" column="age" jdbcType="INTEGER"/>
+        <result property="sex" column="sex" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="queryLoginInfo" resultMap="LoginInfo">
+        select
+          username, password, role
+        from login_info
+        where username = #{username}
+    </select>
+
+    <select id="queryUserInfo" resultMap="UserInfoDO">
+        select
+          userId, introduction, role, avatar, name, sex, age
+        from user_info
+        where userId = #{userId}
+    </select>
+
+    <update id="updateLoginInfo">
+        update login_info
+        <set>
+            <if test="password != null">
+                password = #{password},
+            </if>
+            <if test="role != 0">
+                role = #{role},
+            </if>
+        </set>
+        where username = #{username}
+    </update>
+
+    <update id="updateUserInfo">
+        update user_info
+        <set>
+            <if test="name != null">
+                name = #{name},
+            </if>
+            <if test="role != 0">
+                role = #{role},
+            </if>
+            <if test="avatar != null">
+                avatar = #{avatar},
+            </if>
+            <if test="introduction != null">
+                introduction = #{introduction},
+            </if>
+            <if test="age != null">
+                age = #{age},
+            </if>
+            <if test="sex != null">
+                sex = #{sex},
+            </if>
+        </set>
+        where userId = #{userId}
+    </update>
+
+    <select id="queryUserListInfo" resultMap="UserInfoDO">
+        select userId, name
+        from user_info
+        where role = #{role}
+    </select>
+
+    <select id="batchQueryUserInfo" resultMap="UserInfoDO">
+        select userId, introduction, role, avatar, name, sex, age
+        from user_info
+        where userId in
+        <foreach collection="userIdList" item="userId" open="(" close=")" separator=",">
+            #{userId}
+        </foreach>
+    </select>
+</mapper>

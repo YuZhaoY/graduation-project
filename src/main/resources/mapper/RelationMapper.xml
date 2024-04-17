@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.RelationMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.RelationDO" id="Relation">
+        <result property="id" column="id" jdbcType="INTEGER"/>
+        <result property="replenishmentId" column="replenishment_id" jdbcType="VARCHAR"/>
+        <result property="saleId" column="sale_id" jdbcType="VARCHAR"/>
+        <result property="bookingId" column="booking_id" jdbcType="VARCHAR"/>
+        <result property="inboundId" column="inbound_id" jdbcType="VARCHAR"/>
+        <result property="payId" column="pay_id" jdbcType="VARCHAR"/>
+        <result property="refundId" column="refund_id" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="base">
+        id, replenishment_id, sale_id, booking_id, inbound_id, pay_id, refund_id
+    </sql>
+
+    <select id="query" parameterType="com.scu.stu.pojo.DO.queryParam.RelationQuery" resultMap="Relation">
+        select
+        <include refid="base" />
+        from relation
+        <where>
+            <if test="id != null and id != 0">
+                id = #{id}
+            </if>
+            <if test="replenishmentId != null and replenishmentId != ''">
+                and replenishment_id = #{replenishmentId}
+            </if>
+            <if test="saleId != null and saleId != ''">
+                and sale_id = #{saleId}
+            </if>
+            <if test="bookingId != null and bookingId !=''">
+                and booking_id = #{bookingId}
+            </if>
+            <if test="inboundId != null and inboundId !=''">
+                and inbound_id = #{inboundId}
+            </if>
+            <if test="payId != null and payId !=''">
+                and pay_id = #{payId}
+            </if>
+            <if test="refundId != null and refundId !=''">
+                and refund_id = #{refundId}
+            </if>
+        </where>
+    </select>
+
+    <insert parameterType="com.scu.stu.pojo.DO.RelationDO" id="create">
+        insert into relation
+        (replenishment_id, sale_id)
+        values
+        (#{replenishmentId}, #{saleId})
+    </insert>
+
+    <update id="update">
+        update relation
+        <set>
+            <if test="replenishmentId != null and replenishmentId != ''">
+                replenishment_id = #{replenishmentId},
+            </if>
+            <if test="saleId != null and saleId != ''">
+                sale_id = #{saleId},
+            </if>
+            <if test="bookingId != null and bookingId !=''">
+                booking_id = #{bookingId},
+            </if>
+            <if test="inboundId != null and inboundId !=''">
+                inbound_id = #{inboundId},
+            </if>
+            <if test="payId != null and payId !=''">
+                pay_id = #{payId},
+            </if>
+            <if test="refundId != null and refundId !=''">
+                refund_id = #{refundId}
+            </if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <select id="queryByBookingList" resultMap="Relation">
+        select
+        <include refid="base" />
+        from relation
+        where booking_id in
+        <foreach collection="bookingList" item="bookingId" open="(" close=")" separator=",">
+            #{bookingId}
+        </foreach>
+    </select>
+
+</mapper>

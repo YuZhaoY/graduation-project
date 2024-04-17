@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.BookingMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.BookingDO" id="Booking">
+        <result property="bookingId" column="booking_id" jdbcType="VARCHAR"/>
+        <result property="GMTCreate" column="gmt_create" jdbcType="DATE"/>
+        <result property="GMTModified" column="gmt_modified" jdbcType="DATE"/>
+        <result property="bookingTime" column="booking_time" jdbcType="DATE"/>
+        <result property="storeId" column="store_id" jdbcType="VARCHAR"/>
+        <result property="farmerId" column="farmer_id" jdbcType="VARCHAR"/>
+        <result property="licensePlate" column="license_plate" jdbcType="VARCHAR"/>
+        <result property="driver" column="driver" jdbcType="VARCHAR"/>
+        <result property="signTime" column="sign_time" jdbcType="DATE"/>
+        <result property="status" column="status" jdbcType="INTEGER"/>
+        <result property="version" column="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="base">
+        booking_id, gmt_create, gmt_modified, booking_time, store_id, farmer_id, license_plate, driver, sign_time, status, version
+    </sql>
+
+    <select id="query" resultMap="Booking">
+        select
+        <include refid="base" />
+        from booking_order
+        <where>
+            <if test="bookingId != null and bookingId != ''">
+                booking_id = #{bookingId}
+            </if>
+            <if test="farmerId != null and farmerId != ''">
+                and farmer_id = #{farmerId}
+            </if>
+            <if test="status != null and status != 0">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="total" resultType="java.lang.Integer">
+        select COUNT(*)
+        from booking_order
+        <where>
+            <if test="bookingId != null and bookingId != ''">
+                booking_id = #{bookingId}
+            </if>
+            <if test="farmerId != null and farmerId != ''">
+                and farmer_id = #{farmerId}
+            </if>
+            <if test="status != null and status != 0">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+    <select id="batchQuery" resultMap="Booking">
+        select
+        <include refid="base" />
+        from booking_order
+        where booking_id in
+        <foreach collection="bookingIdList" item="bookingId" open="(" close=")" separator=",">
+            #{bookingId}
+        </foreach>
+    </select>
+
+    <insert id="create">
+        insert into booking_order
+        (booking_id, gmt_create, booking_time, store_id, farmer_id, license_plate, driver, sign_time, status, version)
+        values
+        (#{bookingId}, now(), #{bookingTime}, #{storeId}, #{farmerId}, #{licensePlate}, #{driver}, #{signTime}, #{status}, 0)
+    </insert>
+
+    <update id="update">
+        update booking_order
+        <set>
+            gmt_modified <![CDATA[=]]> now(),
+            <if test="farmerId != null and farmerId != ''">
+                farmer_id = #{farmerId},
+            </if>
+            <if test="bookingTime != null">
+                booking_time = #{bookingTime},
+            </if>
+            <if test="storeId != null and storeId != ''">
+                store_id = #{storeId},
+            </if>
+            <if test="licensePlate != null and licensePlate != ''">
+                license_plate = #{licensePlate},
+            </if>
+            <if test="driver != null and driver != ''">
+                driver = #{driver},
+            </if>
+            <if test="signTime != null">
+                sign_time = #{signTime},
+            </if>
+            <if test="status != null and status != 0">
+                status = #{status},
+            </if>
+            version = version+1
+        </set>
+        where booking_id = #{bookingId}
+    </update>
+</mapper>

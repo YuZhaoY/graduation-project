@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.InboundMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.InboundDO" id="InboundOrder">
+        <result property="inboundId" column="inbound_id" jdbcType="VARCHAR"/>
+        <result property="GMTCreate" column="gmt_create" jdbcType="DATE"/>
+        <result property="GMTModified" column="gmt_modified" jdbcType="DATE"/>
+        <result property="inspectorId" column="inspector_id" jdbcType="VARCHAR"/>
+        <result property="storeId" column="store_id" jdbcType="VARCHAR"/>
+        <result property="inboundTime" column="inbound_time" jdbcType="DATE"/>
+    </resultMap>
+
+    <resultMap type="com.scu.stu.pojo.DO.InboundSubDO" id="InboundSubOrder">
+        <result property="inboundId" column="inbound_id" jdbcType="VARCHAR"/>
+        <result property="itemId" column="item_id" jdbcType="VARCHAR"/>
+        <result property="quantity" column="quantity" jdbcType="DECIMAL"/>
+    </resultMap>
+
+    <sql id="base">
+        inbound_id, gmt_create, gmt_modified, inspector_id, store_id, inbound_time
+    </sql>
+
+    <sql id="baseSub">
+        inbound_id, item_id, quantity
+    </sql>
+
+    <select id="query" parameterType="com.scu.stu.pojo.DO.queryParam.InboundQuery" resultMap="InboundOrder">
+        select
+        <include refid="base" />
+        from inbound_order
+        <where>
+            <if test="inboundId != null and inboundId != ''">
+                inbound_id = #{inboundId}
+            </if>
+            <if test="storeId != null and storeId != ''">
+                and store_id = #{storeId}
+            </if>
+            <if test="inspectorId != null and inspectorId != ''">
+                and inspector_id = #{inspectorId}
+            </if>
+        </where>
+    </select>
+
+    <select id="total" resultType="java.lang.Integer">
+        select count(*)
+        from inbound_order
+        <where>
+            <if test="inboundId != null and inboundId != ''">
+                inbound_id = #{inboundId}
+            </if>
+            <if test="storeId != null and storeId != ''">
+                and store_id = #{storeId}
+            </if>
+            <if test="inspectorId != null and inspectorId != ''">
+                and inspector_id = #{inspectorId}
+            </if>
+        </where>
+    </select>
+
+    <select id="querySub" resultMap="InboundSubOrder">
+        select
+        <include refid="baseSub" />
+        from inbound_sub_order
+        where inbound_id = #{inboundId}
+    </select>
+
+    <insert id="create">
+        insert into inbound_order
+        (inbound_id, gmt_create, inspector_id, store_id, inbound_time)
+        values
+        (#{inboundId}, now(), #{inspectorId}, #{storeId}, now())
+    </insert>
+
+    <insert id="createSub">
+        insert into inbound_sub_order
+        (inbound_id, item_id, quantity)
+        values
+        <foreach collection="inboundSubDOList" item="item" separator=",">
+            (#{item.inboundId}, #{item.itemId}, #{item.quantity})
+        </foreach>
+    </insert>
+</mapper>

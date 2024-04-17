@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.SaleMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.SaleDO" id="SaleOrder">
+        <result property="saleId" column="sale_id" jdbcType="VARCHAR"/>
+        <result property="GMTCreate" column="gmt_create" jdbcType="DATE"/>
+        <result property="GMTModified" column="gmt_modified" jdbcType="DATE"/>
+        <result property="purchaseId" column="purchase_id" jdbcType="VARCHAR"/>
+        <result property="farmerId" column="farmer_id" jdbcType="VARCHAR"/>
+        <result property="totalAmount" column="total_amount" jdbcType="DECIMAL"/>
+        <result property="returnAmount" column="return_amount" jdbcType="DECIMAL"/>
+        <result property="payAmount" column="pay_amount" jdbcType="DECIMAL"/>
+        <result property="freezeAmount" column="freeze_amount" jdbcType="DECIMAL"/>
+        <result property="status" column="status" jdbcType="INTEGER"/>
+        <result property="version" column="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <resultMap type="com.scu.stu.pojo.DO.SaleSubDO" id="SaleSubOrder">
+        <result property="saleId" column="sale_id" jdbcType="VARCHAR"/>
+        <result property="GMTCreate" column="gmt_create" jdbcType="DATE"/>
+        <result property="GMTModified" column="gmt_modified" jdbcType="DATE"/>
+        <result property="itemId" column="item_id" jdbcType="VARCHAR"/>
+        <result property="price" column="price" jdbcType="DECIMAL"/>
+        <result property="quantity" column="quantity" jdbcType="DECIMAL"/>
+    </resultMap>
+
+    <sql id="base">
+        sale_id, gmt_create, gmt_modified, purchase_id, farmer_id, total_amount, return_amount, pay_amount, freeze_amount, status, version
+    </sql>
+
+    <sql id="baseSub">
+        sale_id, gmt_create, gmt_modified, item_id, price, quantity
+    </sql>
+
+    <select id="querySaleOrder" parameterType="com.scu.stu.pojo.DO.queryParam.SaleQuery" resultMap="SaleOrder">
+        select
+        <include refid="base" />
+        from sale_order
+        <where>
+            <if test="saleId != null and saleId != ''">
+                sale_id = #{saleId}
+            </if>
+            <if test="purchaseId != null and purchaseId != ''">
+                and purchase_id = #{purchaseId}
+            </if>
+            <if test="farmerId != null and farmerId != ''">
+                and farmer_id = #{farmerId}
+            </if>
+            <if test="status != null and status != 0">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="total" resultType="java.lang.Integer">
+        select count(*)
+        from sale_order
+        <where>
+            <if test="saleId != null and saleId != ''">
+                sale_id = #{saleId}
+            </if>
+            <if test="purchaseId != null and purchaseId != ''">
+                and purchase_id = #{purchaseId}
+            </if>
+            <if test="farmerId != null and farmerId != ''">
+                and farmer_id = #{farmerId}
+            </if>
+            <if test="status != null and status != 0">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+    <select id="querySaleSubOrder" resultMap="SaleSubOrder">
+        select
+        <include refid="baseSub" />
+        from sale_sub_order
+        where sale_id = #{saleId}
+    </select>
+
+    <insert id="insertSaleOrder">
+        insert into sale_order
+        (sale_id, gmt_create, purchase_id, farmer_id, total_amount, return_amount, pay_amount, freeze_amount, status, version)
+        values
+        (#{saleId}, now(), #{purchaseId}, #{farmerId}, #{totalAmount}, 0, 0, 0, #{status}, 0)
+    </insert>
+
+    <update id="updateSaleOrder">
+        update sale_order
+        <set>
+        gmt_modified <![CDATA[=]]> now(),
+        <if test="farmerId != null and farmerId != ''">
+            farmer_id = #{farmerId},
+        </if>
+        <if test="totalAmount != null">
+            total_amount = #{totalAmount},
+        </if>
+        <if test="returnAmount != null">
+            return_amount = #{returnAmount},
+        </if>
+        <if test="payAmount != null">
+            pay_amount = #{payAmount},
+        </if>
+        <if test="freezeAmount != null">
+            freeze_amount = #{freezeAmount},
+        </if>
+        <if test="status != null and status != 0">
+            status = #{status},
+        </if>
+        version = version+1
+        </set>
+        where sale_id = #{saleId}
+    </update>
+
+    <insert id="batchInsertSub">
+        insert into sale_sub_order
+        (sale_id, gmt_create, item_id, price, quantity)
+        values
+        <foreach collection="saleSubDOS" item="item" separator=",">
+            (#{item.saleId}, now(), #{item.itemId}, #{item.price}, #{item.quantity})
+        </foreach>
+    </insert>
+
+    <delete id="batchDeleteSub">
+        delete from sale_sub_order
+        where
+        <foreach collection="saleSubDOS" item="item" open="(" close=")" separator=",">
+            (sale_id = #{item.saleId} and item_id = #{item.itemId})
+        </foreach>
+    </delete>
+
+    <update id="batchUpdateSub">
+        <foreach collection="saleSubDOS" item="item" separator=",">
+            update sale_sub_order
+            set gmt_modified <![CDATA[=]]> now(), quantity = #{item.quantity}, price = #{price}
+            where sale_id = #{item.saleId} and item_id = #{item.itemId}
+        </foreach>
+    </update>
+</mapper>

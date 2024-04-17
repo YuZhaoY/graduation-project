@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.RefundMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.RefundDO" id="RefundOrder">
+        <result property="refundId" column="refund_id" jdbcType="VARCHAR"/>
+        <result property="GMTCreate" column="gmt_create" jdbcType="DATE"/>
+        <result property="GMTModified" column="gmt_modified" jdbcType="DATE"/>
+        <result property="inspectorId" column="inspector_id" jdbcType="VARCHAR"/>
+        <result property="storeId" column="store_id" jdbcType="VARCHAR"/>
+        <result property="refundTime" column="refund_time" jdbcType="DATE"/>
+    </resultMap>
+
+    <resultMap type="com.scu.stu.pojo.DO.RefundSubDO" id="RefundSubOrder">
+        <result property="refundId" column="refund_id" jdbcType="VARCHAR"/>
+        <result property="itemId" column="item_id" jdbcType="VARCHAR"/>
+        <result property="quantity" column="quantity" jdbcType="DECIMAL"/>
+    </resultMap>
+
+    <sql id="base">
+        refund_id, gmt_create, gmt_modified, inspector_id, store_id, refund_time
+    </sql>
+
+    <sql id="baseSub">
+        refund_id, item_id, quantity
+    </sql>
+
+    <select id="query" parameterType="com.scu.stu.pojo.DO.queryParam.RefundQuery" resultMap="RefundOrder">
+        select
+        <include refid="base" />
+        from refund_order
+        <where>
+            <if test="refundId != null and refundId != ''">
+                refund_id = #{refundId}
+            </if>
+            <if test="storeId != null and storeId != ''">
+                and store_id = #{storeId}
+            </if>
+            <if test="inspectorId != null and inspectorId != ''">
+                and inspector_id = #{inspectorId}
+            </if>
+        </where>
+    </select>
+
+    <select id="total" resultType="java.lang.Integer">
+        select count(*)
+        from refund_order
+        <where>
+            <if test="refundId != null and refundId != ''">
+                refund_id = #{refundId}
+            </if>
+            <if test="storeId != null and storeId != ''">
+                and store_id = #{storeId}
+            </if>
+            <if test="inspectorId != null and inspectorId != ''">
+                and inspector_id = #{inspectorId}
+            </if>
+        </where>
+    </select>
+
+    <select id="querySub" resultMap="RefundSubOrder">
+        select
+        <include refid="baseSub" />
+        from refund_sub_order
+        where refund_id = #{refundId}
+    </select>
+
+    <insert id="create">
+        insert into refund_order
+        (refund_id, gmt_create, inspector_id, store_id, refund_time)
+        values
+        (#{refundId}, now(), #{inspectorId}, #{storeId}, now())
+    </insert>
+
+    <insert id="createSub">
+        insert into refund_sub_order
+        (refund_id, item_id, quantity)
+        values
+        <foreach collection="refundSubDOList" item="item" separator=",">
+            (#{item.refundId}, #{item.itemId}, #{item.quantity})
+        </foreach>
+    </insert>
+</mapper>

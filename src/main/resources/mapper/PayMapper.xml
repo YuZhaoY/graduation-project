@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.PayMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.PayDO" id="PayOrder">
+        <result property="payId" column="pay_id" jdbcType="VARCHAR"/>
+        <result property="GMTCreate" column="gmt_create" jdbcType="DATE"/>
+        <result property="GMTModified" column="gmt_modified" jdbcType="DATE"/>
+        <result property="payAmount" column="pay_amount" jdbcType="DECIMAL"/>
+        <result property="inspectorId" column="inspector_id" jdbcType="VARCHAR"/>
+        <result property="farmerId" column="farmer_id" jdbcType="VARCHAR"/>
+        <result property="type" column="type" jdbcType="INTEGER"/>
+        <result property="status" column="status" jdbcType="INTEGER"/>
+        <result property="version" column="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="base">
+        pay_id, gmt_create, gmt_modified, inspector_id, farmer_id, pay_amount, type, status, version
+    </sql>
+
+    <insert id="create">
+        insert into pay_order
+        (pay_id, gmt_create, inspector_id, farmer_id, pay_amount, type, status)
+        values
+        (#{payId}, now(), #{inspectorId}, #{farmerId}, #{payAmount}, #{type}, #{status})
+    </insert>
+
+    <update id="update">
+        update pay_order
+        <set>
+            gmt_modified <![CDATA[=]]> now(),
+            <if test="inspectorId != null and inspectorId != ''">
+                inspector_id = #{inspectorId},
+            </if>
+            <if test="farmerId != null and farmerId != ''">
+                farmer_id = #{farmerId},
+            </if>
+            <if test="payAmount != null">
+                pay_amount = #{payAmount},
+            </if>
+            <if test="type != null and type != 0">
+                type = #{type},
+            </if>
+            <if test="status != null and status != 0">
+                status = #{status},
+            </if>
+            version = version+1
+        </set>
+        where payId = #{pay_id}
+    </update>
+
+    <select id="query" resultMap="PayOrder">
+        select
+        <include refid="base"/>
+        <where>
+            <if test="payId != null and payId != ''">
+                pay_id = #{payId}
+            </if>
+            <if test="inspectorId != null and inspectorId != ''">
+                and inspector_id = #{inspectorId}
+            </if>
+            <if test="farmerId != null and farmerId != ''">
+                and farmer_id = #{farmerId}
+            </if>
+            <if test="type != null and type != 0">
+                and type = #{type}
+            </if>
+            <if test="status != null and status != 0">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+</mapper>

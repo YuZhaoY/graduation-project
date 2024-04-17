@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.ItemMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.ItemDO" id="Item">
+        <result property="itemId" column="item_id" jdbcType="VARCHAR"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="specification" column="specification" jdbcType="VARCHAR"/>
+        <result property="unit" column="unit" jdbcType="VARCHAR"/>
+        <result property="picUrl" column="pic_url" jdbcType="VARCHAR"/>
+        <result property="category" column="category" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="queryItemId" resultType="java.lang.String">
+        select item_id from item_info
+        order by item_id desc limit 1
+    </select>
+    <select id="query" parameterType="com.scu.stu.pojo.DO.queryParam.ItemQuery" resultMap="Item">
+        select item_id, name, specification, unit, pic_url, category
+        from item_info
+        <where>
+            <if test="itemId != null and itemId != ''">
+                item_id = #{itemId}
+            </if>
+            <if test="name != null and name != ''">
+                and name = #{name}
+            </if>
+            <if test="category != null and category !=''">
+                and category = #{category}
+            </if>
+        </where>
+    </select>
+
+    <select id="total" resultType="java.lang.Integer">
+        select count(*)
+        from item_info
+        <where>
+            <if test="itemId != null and itemId != ''">
+                item_id = #{itemId}
+            </if>
+            <if test="name != null and name != ''">
+                and name = #{name}
+            </if>
+            <if test="category != null and category !=''">
+                and category = #{category}
+            </if>
+        </where>
+    </select>
+    <insert id="create">
+        insert into item_info
+        (item_id, name, specification, unit, pic_url, category)
+        values
+        (#{itemId}, #{name}, #{specification}, #{unit}, #{picUrl}, #{category})
+    </insert>
+
+    <update id="update">
+        update item_info
+        <set>
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            <if test="category != null and category != ''">
+                category = #{category},
+            </if>
+            specification = #{specification},unit = #{unit},pic_url = #{picUrl},
+        </set>
+        where item_id = #{itemId}
+    </update>
+
+    <delete id="delete">
+        delete from item_info
+        where item_id = #{itemId}
+    </delete>
+</mapper>

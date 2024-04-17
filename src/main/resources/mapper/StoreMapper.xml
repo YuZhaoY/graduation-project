@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.scu.stu.mapper.StoreMapper">
+
+    <resultMap type="com.scu.stu.pojo.DO.StoreDO" id="Store">
+        <result property="storeId" column="store_id" jdbcType="VARCHAR"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="address" column="address" jdbcType="VARCHAR"/>
+        <result property="province" column="province" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="baseColumn">
+        store_id, name, address, province
+    </sql>
+
+    <select id="queryStoreId" resultType="java.lang.String">
+        select store_id from store
+        order by store_id desc limit 1
+    </select>
+
+    <select id="query" parameterType="com.scu.stu.pojo.DO.queryParam.StoreQuery" resultMap="Store">
+        select
+        <include refid="baseColumn" />
+        from store
+        <where>
+            <if test="storeId != null and storeId != ''">
+                store_id = #{storeId}
+            </if>
+            <if test="name != null and name != ''">
+                and name like "%"#{name}"%"
+            </if>
+            <if test="province != null and province != ''">
+                and province = #{province}
+            </if>
+        </where>
+    </select>
+
+    <select id="total" resultType="java.lang.Integer">
+        select count(*)
+        from store
+        <where>
+            <if test="storeId != null and storeId != ''">
+                store_id = #{storeId}
+            </if>
+            <if test="name != null and name != ''">
+                and name like "%"#{name}"%"
+            </if>
+            <if test="province != null and province != ''">
+                and province = #{province}
+            </if>
+        </where>
+    </select>
+    <update id="update">
+        update store
+        <set>
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            <if test="address != null and address != ''">
+                address = #{address},
+            </if>
+            <if test="province != null and province != ''">
+                province = #{province},
+            </if>
+        </set>
+        where store_id = #{storeId}
+    </update>
+
+    <delete id="delete">
+        delete from store
+        where store_id = #{storeId}
+    </delete>
+
+    <insert id="create">
+        insert into store
+        (store_id, name, address, province)
+        values
+        (#{storeId}, #{name}, #{address}, #{province})
+    </insert>
+</mapper>
