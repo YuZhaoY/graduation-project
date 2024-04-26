@@ -18,6 +18,18 @@ public interface RelationService {
     List<RelationDTO> query(RelationQuery query);
 
     /**
+     * 根据采购单ID批量查询
+     * @param saleIdList
+     * @return
+     */
+    List<RelationDTO> queryBySaleIdList(List<String> saleIdList);
+
+    /**
+     * 查询总数
+     */
+    int total(RelationQuery query);
+
+    /**
      * 创建
      */
     boolean create(RelationDTO relationDTO);

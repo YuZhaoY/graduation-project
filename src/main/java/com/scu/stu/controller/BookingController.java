@@ -2,19 +2,30 @@ package com.scu.stu.controller;
 
 import com.alibaba.fastjson.JSON;
 import com.scu.stu.common.BookingStatus;
+import com.scu.stu.common.RedisLock;
 import com.scu.stu.common.Result;
 import com.scu.stu.common.RoleEnum;
 import com.scu.stu.pojo.DO.LoginInfoDO;
 import com.scu.stu.pojo.DO.queryParam.BookingQuery;
+import com.scu.stu.pojo.DO.queryParam.SaleQuery;
 import com.scu.stu.pojo.DTO.BookingDTO;
+import com.scu.stu.pojo.DTO.RelationDTO;
+import com.scu.stu.pojo.DTO.SaleDTO;
 import com.scu.stu.pojo.VO.BookingVO;
 import com.scu.stu.pojo.VO.param.BookingParam;
 import com.scu.stu.service.BookingService;
+import com.scu.stu.service.SaleService;
 import com.scu.stu.service.UserService;
 import com.scu.stu.utils.DateUtils;
 import com.scu.stu.utils.JwtUtils;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.SendStatus;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import wiki.xsx.core.snowflake.config.Snowflake;
@@ -29,8 +40,14 @@ import java.util.stream.Collectors;
 @CrossOrigin
 public class BookingController {
 
+    @Autowired
+    private RedisLock redisLock;
+
     @Resource
     private BookingService bookingService;
+
+    @Resource
+    private SaleService saleService;
 
     @Autowired
     private Snowflake snowflake;
@@ -38,11 +55,24 @@ public class BookingController {
     @Resource
     private UserService userService;
 
+    @Resource(name = "rocketMQService")
+    private RocketMQTemplate rocketMQService;
+
+    @Value("${rocketmq.topic.relation}")
+    private String topic;
+
+    private final String tokenCheck = "token";
+
+    private final long expireTime = 30*60*1000; //30分钟
+
     @GetMapping("api/getBookingList")
     public Result getList(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data) {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             LoginInfoDO loginInfoDO = userService.queryLoginInfo(userId);
             BookingQuery query = JSON.parseObject(data, BookingQuery.class);
             if (loginInfoDO.getRole() == RoleEnum.EDITOR.getRole()) {
@@ -74,6 +104,9 @@ public class BookingController {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             LoginInfoDO loginInfoDO = userService.queryLoginInfo(userId);
             BookingQuery query = JSON.parseObject(data, BookingQuery.class);
             if (loginInfoDO.getRole() == RoleEnum.EDITOR.getRole()) {
@@ -90,18 +123,36 @@ public class BookingController {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             BookingParam param = JSON.parseObject(data, BookingParam.class);
+            SaleQuery saleQuery = new SaleQuery();
+            saleQuery.setSaleId(param.getSaleId());
+            List<SaleDTO> saleDTOS = saleService.getList(saleQuery);
+            if(saleDTOS == null || CollectionUtils.isEmpty(saleDTOS)){
+                return Result.error("采购单无效，请输入正确的采购单ID");
+            }
+
             BookingDTO bookingDTO = new BookingDTO();
             BeanUtils.copyProperties(param, bookingDTO);
             bookingDTO.setBookingId(snowflake.nextIdStr());
             bookingDTO.setBookingTime(DateUtils.parse(param.getBookingTime()));
             bookingDTO.setStatus(BookingStatus.VALID.getCode());
             bookingDTO.setFarmerId(userId);
-            if (bookingService.create(bookingDTO, param.getSaleId())) {
-                return Result.success();
-            } else {
-                return Result.error("创建失败");
+
+            //发送relation创建信息
+            RelationDTO relationDTO = new RelationDTO();
+            relationDTO.setSaleId(param.getSaleId());
+            relationDTO.setBookingId(bookingDTO.getBookingId());
+            Message<String> msgs = MessageBuilder.withPayload(JSON.toJSONString(relationDTO)).build();
+            SendResult sendResult = rocketMQService.syncSend(topic.concat(":BOOKING"), msgs);
+            if(sendResult.getSendStatus() == SendStatus.SEND_OK) {
+                if (bookingService.create(bookingDTO, param.getSaleId())) {
+                    return Result.success();
+                }
             }
+            return Result.error("创建预约单失败");
         } else {
             return Result.error("未查到身份信息");
         }
@@ -112,6 +163,9 @@ public class BookingController {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             BookingQuery query = new BookingQuery();
             query.setBookingId(bookingId);
             query.setFarmerId(userId);
@@ -175,6 +229,9 @@ public class BookingController {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             LoginInfoDO loginInfoDO = userService.queryLoginInfo(userId);
             if (loginInfoDO.getRole() == RoleEnum.EDITOR.getRole()) {
                 return Result.error("供应商无法进行签到,请联系仓库小二签到");
@@ -202,6 +259,17 @@ public class BookingController {
             }
         } else {
             return Result.error("未查到身份信息");
+        }
+    }
+
+    public boolean RefreshToken(String userId) {
+        if(!redisLock.lock(userId, tokenCheck, expireTime)){
+            redisLock.unlock(userId,tokenCheck);
+            redisLock.lock(userId,tokenCheck,expireTime);
+            return true;
+        } else {
+            redisLock.unlock(userId, tokenCheck);
+            return false;
         }
     }
 }

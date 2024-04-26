@@ -1,5 +1,7 @@
 package com.scu.stu.service.Impl;
 
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.scu.stu.mapper.RelationMapper;
 import com.scu.stu.pojo.DO.RelationDO;
 import com.scu.stu.pojo.DO.queryParam.RelationQuery;
@@ -34,8 +36,8 @@ public class RelationServiceImpl implements RelationService {
     }
 
     @Override
-    public List<RelationDTO> query(RelationQuery query) {
-        List<RelationDO> relationDOList = relationMapper.query(query);
+    public List<RelationDTO> queryBySaleIdList(List<String> saleIdList) {
+        List<RelationDO> relationDOList = relationMapper.queryBySaleIdList(saleIdList);
         if(relationDOList != null && !CollectionUtils.isEmpty(relationDOList)){
             List<RelationDTO> relationDTOList = relationDOList.stream().map(relationDO -> {
                 RelationDTO relationDTO = new RelationDTO();
@@ -45,6 +47,26 @@ public class RelationServiceImpl implements RelationService {
             return relationDTOList;
         }
         return null;
+    }
+    @Override
+    public List<RelationDTO> query(RelationQuery query) {
+        PageHelper.startPage(query.getPage(), query.getLimit());
+        List<RelationDO> relationDOList = relationMapper.query(query);
+        if(relationDOList != null && !CollectionUtils.isEmpty(relationDOList)){
+            List<RelationDTO> relationDTOList = relationDOList.stream().map(relationDO -> {
+                RelationDTO relationDTO = new RelationDTO();
+                BeanUtils.copyProperties(relationDO, relationDTO);
+                return relationDTO;
+            }).collect(Collectors.toList());
+            PageInfo<RelationDTO> pageInfo = new PageInfo<>(relationDTOList);
+            return pageInfo.getList();
+        }
+        return null;
+    }
+
+    @Override
+    public int total(RelationQuery query) {
+        return relationMapper.total(query);
     }
 
     @Override

@@ -20,9 +20,9 @@
 
     <insert id="create">
         insert into pay_order
-        (pay_id, gmt_create, inspector_id, farmer_id, pay_amount, type, status)
+        (pay_id, gmt_create, inspector_id, farmer_id, pay_amount, type, status, version)
         values
-        (#{payId}, now(), #{inspectorId}, #{farmerId}, #{payAmount}, #{type}, #{status})
+        (#{payId}, now(), #{inspectorId}, #{farmerId}, #{payAmount}, #{type}, #{status}, 0)
     </insert>
 
     <update id="update">
@@ -46,12 +46,35 @@
             </if>
             version = version+1
         </set>
-        where payId = #{pay_id}
+        where pay_id = #{payId}
     </update>
 
     <select id="query" resultMap="PayOrder">
         select
         <include refid="base"/>
+        from pay_order
+        <where>
+            <if test="payId != null and payId != ''">
+                pay_id = #{payId}
+            </if>
+            <if test="inspectorId != null and inspectorId != ''">
+                and inspector_id = #{inspectorId}
+            </if>
+            <if test="farmerId != null and farmerId != ''">
+                and farmer_id = #{farmerId}
+            </if>
+            <if test="type != null and type != 0">
+                and type = #{type}
+            </if>
+            <if test="status != null and status != 0">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="total" resultType="java.lang.Integer">
+        select COUNT(*)
+        from pay_order
         <where>
             <if test="payId != null and payId != ''">
                 pay_id = #{payId}

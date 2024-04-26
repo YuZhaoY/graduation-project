@@ -6,6 +6,7 @@ import com.scu.stu.pojo.DO.LoginInfoDO;
 import com.scu.stu.pojo.DO.UserInfoDO;
 import com.scu.stu.service.UserService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -44,5 +45,11 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<UserInfoDO> queryUserListInfo(int role) {
         return userMapper.queryUserListInfo(role);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean register(UserInfoDO userInfoDO, LoginInfoDO loginInfoDO) {
+        return userMapper.create(userInfoDO) && userMapper.createLogin(loginInfoDO);
     }
 }

@@ -8,14 +8,17 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Mapper
-@Repository
 public interface RelationMapper {
 
     List<RelationDO> query(RelationQuery query);
+
+    int total(RelationQuery query);
 
     boolean create(RelationDO relationDO);
 
     boolean update(RelationDO relationDO);
 
     List<RelationDO> queryByBookingList(List<String> bookingList);
+
+    List<RelationDO> queryBySaleIdList(List<String> saleIdList);
 }

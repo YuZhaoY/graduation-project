@@ -8,7 +8,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Mapper
-@Repository
 public interface PayMapper {
 
     boolean create(PayDO payDO);
@@ -16,4 +15,6 @@ public interface PayMapper {
     boolean update(PayDO payDO);
 
     List<PayDO> query(PayQuery query);
+
+    int total(PayQuery query);
 }

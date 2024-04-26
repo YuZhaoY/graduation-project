@@ -46,4 +46,14 @@ public class UserVO {
      * 年龄
      */
     private int age;
+
+    /**
+     * 身份证号
+     */
+    private String identityCard;
+
+    /**
+     * 收款二维码
+     */
+    private String QRCode;
 }

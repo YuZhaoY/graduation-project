@@ -32,7 +32,7 @@ public interface SaleService {
     /**
      * 更新采购单状态
      */
-    boolean updateStatus(SaleDTO saleDTO);
+    boolean updateSale(SaleDTO saleDTO);
 
     /**
      * 更新采购单

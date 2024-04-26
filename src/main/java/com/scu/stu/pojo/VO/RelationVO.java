@@ -34,4 +34,9 @@ public class RelationVO {
      * 退供单ID
      */
     private String refundId;
+
+    /**
+     * 退供收款单ID
+     */
+    private String returnId;
 }

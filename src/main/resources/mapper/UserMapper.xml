@@ -16,6 +16,8 @@
         <result property="role" column="role" jdbcType="INTEGER"/>
         <result property="age" column="age" jdbcType="INTEGER"/>
         <result property="sex" column="sex" jdbcType="VARCHAR"/>
+        <result property="identityCard" column="identity_card" jdbcType="VARCHAR"/>
+        <result property="QRCode" column="QR_code" jdbcType="VARCHAR"/>
     </resultMap>
 
     <select id="queryLoginInfo" resultMap="LoginInfo">
@@ -27,7 +29,7 @@
 
     <select id="queryUserInfo" resultMap="UserInfoDO">
         select
-          userId, introduction, role, avatar, name, sex, age
+          userId, introduction, role, avatar, name, sex, age, identity_card, QR_code
         from user_info
         where userId = #{userId}
     </select>
@@ -48,40 +50,60 @@
     <update id="updateUserInfo">
         update user_info
         <set>
-            <if test="name != null">
+            <if test="name != null and name != ''">
                 name = #{name},
             </if>
-            <if test="role != 0">
+            <if test="role != null and role != 0">
                 role = #{role},
             </if>
-            <if test="avatar != null">
+            <if test="avatar != null and avatar != ''">
                 avatar = #{avatar},
             </if>
-            <if test="introduction != null">
+            <if test="introduction != null and introduction != ''">
                 introduction = #{introduction},
             </if>
-            <if test="age != null">
+            <if test="age != null and age != 0">
                 age = #{age},
             </if>
-            <if test="sex != null">
+            <if test="sex != null and sex != ''">
                 sex = #{sex},
+            </if>
+            <if test="identityCard != null and identityCard != ''">
+                identity_card = #{identityCard},
+            </if>
+            <if test="QRCode != null and QRCode != ''">
+                QR_code = #{QRCode},
             </if>
         </set>
         where userId = #{userId}
     </update>
 
     <select id="queryUserListInfo" resultMap="UserInfoDO">
-        select userId, name
+        select userId, introduction, role, avatar, name, sex, age, identity_card, QR_code
         from user_info
         where role = #{role}
     </select>
 
     <select id="batchQueryUserInfo" resultMap="UserInfoDO">
-        select userId, introduction, role, avatar, name, sex, age
+        select userId, introduction, role, avatar, name, sex, age, identity_card, QR_code
         from user_info
         where userId in
         <foreach collection="userIdList" item="userId" open="(" close=")" separator=",">
             #{userId}
         </foreach>
     </select>
+
+    <insert id="create">
+        insert into user_info
+        (userId, name, role, age, sex, identity_card)
+        values
+        (#{userId}, #{name}, #{role}, #{age}, #{sex}, #{identityCard})
+    </insert>
+
+    <insert id="createLogin">
+        insert into login_info
+        (username, password, role)
+        values
+        (#{username}, #{password}, #{role})
+    </insert>
 </mapper>

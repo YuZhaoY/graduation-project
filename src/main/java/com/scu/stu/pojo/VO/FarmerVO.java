@@ -13,4 +13,9 @@ public class FarmerVO {
      * 供应商name
      */
     private String name;
+
+    /**
+     * 收款码
+     */
+    private String QRCode;
 }

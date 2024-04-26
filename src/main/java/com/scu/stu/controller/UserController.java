@@ -1,6 +1,7 @@
 package com.scu.stu.controller;
 
 import com.alibaba.fastjson.JSON;
+import com.scu.stu.common.RedisLock;
 import com.scu.stu.common.RoleEnum;
 import com.scu.stu.pojo.DO.LoginInfoDO;
 import com.scu.stu.common.Result;
@@ -11,18 +12,24 @@ import com.scu.stu.service.UserService;
 import com.scu.stu.utils.JwtUtils;
 import com.scu.stu.utils.RandomUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.HtmlUtils;
+import wiki.xsx.core.snowflake.config.Snowflake;
 
 import javax.annotation.Resource;
 import java.io.File;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @CrossOrigin
 public class UserController {
+
+    @Autowired
+    private RedisLock redisLock;
 
     @Value("${file.upload-path}")
     private String pictureURL;
@@ -30,7 +37,14 @@ public class UserController {
     @Resource
     private UserService userService;
 
-    @PostMapping(value = "api/login")
+    @Resource
+    private Snowflake snowflake;
+
+    private final String tokenCheck = "token";
+
+    private final long expireTime = 30*60*1000; //30分钟
+
+    @PostMapping("api/login")
     public Result login(@RequestBody LoginParam loginParam) {
         try {
             // 对 html 标签进行转义，防止 XSS 攻击
@@ -44,6 +58,7 @@ public class UserController {
                 return Result.error(message);
             } else {
                 if (Objects.equals(password, loginInfo.getPassword())) {
+                    redisLock.lock(username, tokenCheck, expireTime);
                     String token = JwtUtils.sign(username);
                     return Result.success(new TokenVO(token));
                 } else {
@@ -54,12 +69,23 @@ public class UserController {
             return Result.error("验证错误");
         }
     }
-
-    @GetMapping("/api/info")
+    @PostMapping("api/logout")
+    public Result logout(@RequestParam("token") String token) {
+        String tokenValue = JwtUtils.verity(token);
+        if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            redisLock.unlock(userId, tokenCheck);
+        }
+        return Result.success();
+    }
+    @GetMapping("api/info")
     public Result userInfo(@RequestParam("token") String token) {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             UserInfoDO userInfoDO = userService.queryUserInfo(userId);
             LoginInfoDO loginInfoDO = userService.queryLoginInfo(userId);
             UserVO userVO = new UserVO();
@@ -74,11 +100,14 @@ public class UserController {
         }
     }
 
-    @PostMapping(value = "api/updateLoginAccount")
+    @PostMapping("api/updateLoginAccount")
     public Result updateLoginAccount(@RequestBody PwdParam pwdParam) {
         String tokenValue = JwtUtils.verity(pwdParam.getToken());
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             LoginInfoDO loginInfoDO = new LoginInfoDO();
             loginInfoDO.setPassword(pwdParam.getPassword());
             loginInfoDO.setUsername(userId);
@@ -93,12 +122,15 @@ public class UserController {
         }
     }
 
-    @PostMapping(value = "api/updateUserAccount")
+    @PostMapping("api/updateUserAccount")
     public Result updateUserAccount(@RequestParam("userInfo") String userInfo, @RequestParam("token") String token) {
         UserInfoParam userInfoParam = JSON.parseObject(userInfo,UserInfoParam.class);
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             UserInfoDO userInfoDO = new UserInfoDO();
             BeanUtils.copyProperties(userInfoParam,userInfoDO);
             userInfoDO.setUserId(userId);
@@ -166,6 +198,7 @@ public class UserController {
             FarmerVO farmerVO = new FarmerVO();
             farmerVO.setFarmerId(userInfoDO.getUserId());
             farmerVO.setName(userInfoDO.getName());
+            farmerVO.setQRCode(userInfoDO.getQRCode());
             farmerVOList.add(farmerVO);
         }
         return Result.success(farmerVOList);
@@ -182,5 +215,42 @@ public class UserController {
             purchaseVOList.add(purchasetVO);
         }
         return Result.success(purchaseVOList);
+    }
+
+    @GetMapping("api/getUsername")
+    public Result getUsername(){
+        return Result.success(snowflake.nextIdStr());
+    }
+
+    @PostMapping("api/register")
+    public Result register(@RequestBody RegisterParam param){
+        List<UserInfoDO> adminInfoDOS = userService.queryUserListInfo(RoleEnum.ADMIN.getRole());
+        List<UserInfoDO> editorInfoDOS = userService.queryUserListInfo(RoleEnum.EDITOR.getRole());
+        List<String> identityCardList = adminInfoDOS.stream().map(UserInfoDO::getIdentityCard).collect(Collectors.toList());
+        identityCardList.addAll(editorInfoDOS.stream().map(UserInfoDO::getIdentityCard).collect(Collectors.toList()));
+        if(identityCardList.contains(param.getIdentityCard())){
+            return Result.error("身份证号已被注册，请重新输入");
+        }
+        UserInfoDO userInfoDO = new UserInfoDO();
+        BeanUtils.copyProperties(param, userInfoDO);
+        userInfoDO.setUserId(param.getUsername());
+        LoginInfoDO loginInfoDO = new LoginInfoDO();
+        BeanUtils.copyProperties(param, loginInfoDO);
+        if(userService.register(userInfoDO, loginInfoDO)) {
+            return Result.success();
+        } else {
+            return Result.error("注册失败");
+        }
+    }
+
+    public boolean RefreshToken(String userId) {
+        if(!redisLock.lock(userId, tokenCheck, expireTime)){
+            redisLock.unlock(userId,tokenCheck);
+            redisLock.lock(userId,tokenCheck,expireTime);
+            return true;
+        } else {
+            redisLock.unlock(userId, tokenCheck);
+            return false;
+        }
     }
 }

@@ -73,7 +73,7 @@ public class SaleServiceImpl implements SaleService {
     }
 
     @Override
-    public boolean updateStatus(SaleDTO saleDTO) {
+    public boolean updateSale(SaleDTO saleDTO) {
         SaleDO saleDO = new SaleDO();
         BeanUtils.copyProperties(saleDTO, saleDO);
         return saleMapper.updateSaleOrder(saleDO);

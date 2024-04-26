@@ -4,6 +4,7 @@ public enum CommonStatusEnum {
 
     SUCCESS(200,"成功"),
     ERROR(400,"失败"),
+    LOGOUT(500, "登出")
     ;
 
     private int code;

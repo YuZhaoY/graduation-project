@@ -6,6 +6,16 @@ import lombok.Data;
 public class RelationQuery {
 
     /**
+     * page
+     */
+    private int page = 1;
+
+    /**
+     * limit
+     */
+    private int limit = 10;
+
+    /**
      * ID
      */
     private String id;
@@ -39,4 +49,9 @@ public class RelationQuery {
      * 退供单ID
      */
     private String refundId;
+
+    /**
+     * 退供收款单ID
+     */
+    private String returnId;
 }

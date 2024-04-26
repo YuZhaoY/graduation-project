@@ -13,6 +13,8 @@ import com.scu.stu.pojo.DTO.ReplenishmentSubDTO;
 import com.scu.stu.service.ReplenishmentService;
 import com.scu.stu.utils.DateUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;

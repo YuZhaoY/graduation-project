@@ -26,9 +26,6 @@ import java.util.stream.Collectors;
 public class RefundServiceImpl implements RefundService {
 
     @Resource
-    private RelationMapper relationMapper;
-
-    @Resource
     private RefundMapper refundMapper;
 
     @Override
@@ -68,7 +65,7 @@ public class RefundServiceImpl implements RefundService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result create(RefundDTO refundDTO, List<RefundSubDTO> refundSubDTOList, String bookingId) {
+    public boolean create(RefundDTO refundDTO, List<RefundSubDTO> refundSubDTOList) {
         RefundDO refundDO = new RefundDO();
         BeanUtils.copyProperties(refundDTO, refundDO);
         List<RefundSubDO> refundSubDOList = refundSubDTOList.stream().map(refundSubDTO -> {
@@ -76,23 +73,6 @@ public class RefundServiceImpl implements RefundService {
             BeanUtils.copyProperties(refundSubDTO, refundSubDO);
             return refundSubDO;
         }).collect(Collectors.toList());
-        RelationQuery query = new RelationQuery();
-        query.setBookingId(bookingId);
-        List<RelationDO> relationDOS = relationMapper.query(query);
-        if(relationDOS != null && !CollectionUtils.isEmpty(relationDOS)){
-            RelationDO relationDO = relationDOS.get(0);
-            if(relationDO.getRefundId() != null) {
-                return Result.error("该订单已退供，无法再次退供");
-            }
-            relationDO.setRefundId(refundDTO.getRefundId());
-            relationMapper.update(relationDO);
-        }
-        if(refundMapper.create(refundDO) && refundMapper.createSub(refundSubDOList)){
-            return Result.success();
-        } else {
-            return Result.error("退供单创建失败");
-        }
-
+        return refundMapper.create(refundDO) && refundMapper.createSub(refundSubDOList);
     }
-
 }

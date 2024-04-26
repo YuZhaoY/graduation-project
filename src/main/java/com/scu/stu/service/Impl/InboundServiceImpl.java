@@ -26,9 +26,6 @@ import java.util.stream.Collectors;
 public class InboundServiceImpl implements InboundService {
 
     @Resource
-    private RelationMapper relationMapper;
-
-    @Resource
     private InboundMapper inboundMapper;
 
     @Override
@@ -68,7 +65,7 @@ public class InboundServiceImpl implements InboundService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result create(InboundDTO inboundDTO, List<InboundSubDTO> inboundSubDTOList, String bookingId) {
+    public boolean create(InboundDTO inboundDTO, List<InboundSubDTO> inboundSubDTOList) {
         InboundDO inboundDO = new InboundDO();
         BeanUtils.copyProperties(inboundDTO, inboundDO);
         List<InboundSubDO> inboundSubDOList = inboundSubDTOList.stream().map(inboundSubDTO -> {
@@ -76,22 +73,7 @@ public class InboundServiceImpl implements InboundService {
             BeanUtils.copyProperties(inboundSubDTO, inboundSubDO);
             return inboundSubDO;
         }).collect(Collectors.toList());
-        RelationQuery query = new RelationQuery();
-        query.setBookingId(bookingId);
-        List<RelationDO> relationDOS = relationMapper.query(query);
-        if(relationDOS != null && !CollectionUtils.isEmpty(relationDOS)){
-            RelationDO relationDO = relationDOS.get(0);
-            if(relationDO.getInboundId() != null) {
-                return Result.error("该订单已入库，无法再次入库");
-            }
-            relationDO.setInboundId(inboundDTO.getInboundId());
-            relationMapper.update(relationDO);
-        }
-        if(inboundMapper.create(inboundDO) && inboundMapper.createSub(inboundSubDOList)){
-            return Result.success();
-        } else {
-            return Result.error("入库单创建失败");
-        }
+        return inboundMapper.create(inboundDO) && inboundMapper.createSub(inboundSubDOList);
 
     }
 

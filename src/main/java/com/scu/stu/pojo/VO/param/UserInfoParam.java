@@ -29,4 +29,14 @@ public class UserInfoParam {
      * 头像
      */
     private String avatar;
+
+    /**
+     * 身份证号
+     */
+    private String identityCard;
+
+    /**
+     * 收款二维码
+     */
+    private String QRCode;
 }

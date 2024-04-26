@@ -8,12 +8,12 @@ public class ItemQuery {
     /**
      * page
      */
-    private int page;
+    private int page = 1;
 
     /**
      * limit
      */
-    private int limit;
+    private int limit = 10;
 
     /**
      * ID

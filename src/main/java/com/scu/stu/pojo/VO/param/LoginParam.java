@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class LoginParam {
+
     /**
      * 用户名
      */

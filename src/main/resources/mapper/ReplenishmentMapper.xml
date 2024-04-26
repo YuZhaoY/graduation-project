@@ -101,13 +101,13 @@
 
     <update id="updateInvalid">
         update replenishment_plan
-        set status = 2, gmt_modified <![CDATA[=]]> now()
+        set status = 2, gmt_modified <![CDATA[=]]> now(), version = version+1
         where expiration <![CDATA[<]]> now()
     </update>
 
     <update id="updateValid">
         update replenishment_plan
-        set status = 1, gmt_modified <![CDATA[=]]> now()
+        set status = 1, gmt_modified <![CDATA[=]]> now(), version = version+1
         where expiration <![CDATA[>=]]> now() and start_expiration <![CDATA[<=]]> now()
     </update>
 

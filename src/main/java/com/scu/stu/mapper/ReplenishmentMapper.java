@@ -5,12 +5,13 @@ import com.scu.stu.pojo.DO.ReplenishmentSubDO;
 import com.scu.stu.pojo.DO.queryParam.ReplenishmentQuery;
 import com.scu.stu.pojo.DO.queryParam.ReplenishmentSubQuery;
 import org.apache.ibatis.annotations.Mapper;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Mapper
-@Repository
 public interface ReplenishmentMapper {
 
     List<ReplenishmentDO> query(ReplenishmentQuery query);

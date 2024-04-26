@@ -1,6 +1,5 @@
 package com.scu.stu.service;
 
-import com.scu.stu.common.Result;
 import com.scu.stu.pojo.DO.queryParam.RefundQuery;
 import com.scu.stu.pojo.DTO.RefundDTO;
 import com.scu.stu.pojo.DTO.RefundSubDTO;
@@ -27,5 +26,5 @@ public interface RefundService {
     /**
      * 创建退供单
      */
-    Result create(RefundDTO refundDTO, List<RefundSubDTO> refundSubDTOList, String bookingId);
+    boolean create(RefundDTO refundDTO, List<RefundSubDTO> refundSubDTOList);
 }

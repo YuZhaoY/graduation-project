@@ -2,19 +2,17 @@ package com.scu.stu.controller;
 
 import com.alibaba.fastjson.JSON;
 import com.scu.stu.common.AgreementStatus;
+import com.scu.stu.common.RedisLock;
 import com.scu.stu.common.Result;
 import com.scu.stu.pojo.DO.AgreementDO;
-import com.scu.stu.pojo.DO.UserInfoDO;
 import com.scu.stu.pojo.DTO.AgreementDTO;
 import com.scu.stu.pojo.VO.param.AgreementParam;
 import com.scu.stu.pojo.VO.AgreementVO;
 import com.scu.stu.service.AgreementService;
-import com.scu.stu.service.UserService;
 import com.scu.stu.utils.DateUtils;
 import com.scu.stu.utils.JwtUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import wiki.xsx.core.snowflake.config.Snowflake;
 
@@ -22,12 +20,14 @@ import javax.annotation.Resource;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
 @CrossOrigin
 public class AgreementController {
+
+    @Autowired
+    private RedisLock redisLock;
 
     @Resource
     private AgreementService agreementService;
@@ -35,11 +35,17 @@ public class AgreementController {
     @Autowired
     private Snowflake snowflake;
 
-    @PostMapping(value = "api/saveAgreement")
+    private final String tokenCheck = "token";
+
+    private final long expireTime = 30*60*1000; //30分钟
+    @PostMapping("api/saveAgreement")
     public Result saveAgreement(@RequestParam("data") String data, @RequestParam("token") String token) {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             AgreementParam agreementParam = JSON.parseObject(data, AgreementParam.class);
             SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
             AgreementDTO agreementDTO = new AgreementDTO();
@@ -65,11 +71,14 @@ public class AgreementController {
             return Result.error("未查到身份信息");
         }
     }
-    @GetMapping(value = "api/getAgreementList")
+    @GetMapping("api/getAgreementList")
     public Result getAgreementList(@RequestParam("token") String token, @RequestParam("pageNow") int pageNow, @RequestParam("pageSize") int pageSize) {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             List<AgreementDTO> agreementDTOList = agreementService.queryAgreementList(userId, pageNow, pageSize);
             if(agreementDTOList.isEmpty()){
                 return Result.success();
@@ -85,18 +94,21 @@ public class AgreementController {
             return Result.error("未查到身份信息");
         }
     }
-    @GetMapping(value = "api/admin/countAgreement")
+    @GetMapping("api/admin/countAgreement")
     public Result countAgreement(@RequestParam("token") String token) {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             int count = agreementService.countByPurchaseId(userId);
             return Result.success(count);
         } else {
             return Result.error("未查到身份信息");
         }
     }
-    @PutMapping(value = "api/updateAgreementStatus")
+    @PutMapping("api/updateAgreementStatus")
     public Result updateAgreementStatus(@RequestParam("agreementId") String agreementId, @RequestParam("status") String status){
         int newStatus=AgreementStatus.getCodeByDesc(status);
         AgreementDTO agreement = agreementService.query(agreementId);
@@ -125,7 +137,7 @@ public class AgreementController {
             return Result.error("更新失败");
         }
     }
-    @PostMapping(value = "api/updateAgreement")
+    @PostMapping("api/updateAgreement")
     public Result updateAgreement(@RequestParam("data") String data) {
         AgreementParam agreementParam = JSON.parseObject(data, AgreementParam.class);
         AgreementDTO agreement = agreementService.query(agreementParam.getAgreementId());
@@ -146,6 +158,16 @@ public class AgreementController {
         } else {
             return Result.error("更新供货协议失败");
         }
+    }
 
+    public boolean RefreshToken(String userId) {
+        if(!redisLock.lock(userId, tokenCheck, expireTime)){
+            redisLock.unlock(userId,tokenCheck);
+            redisLock.lock(userId,tokenCheck,expireTime);
+            return true;
+        } else {
+            redisLock.unlock(userId, tokenCheck);
+            return false;
+        }
     }
 }

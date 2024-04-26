@@ -43,8 +43,15 @@ public interface UserService {
     boolean updateUserInfo(UserInfoDO userInfoDO);
 
     /**
-     * 获取供应商列表
+     * 获取用户列表
      * @return
      */
     List<UserInfoDO> queryUserListInfo(int role);
+
+    /**
+     * 创建用户信息
+     * @param userInfoDO
+     * @return
+     */
+    boolean register(UserInfoDO userInfoDO, LoginInfoDO loginInfoDO);
 }

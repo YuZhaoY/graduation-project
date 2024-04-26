@@ -1,6 +1,5 @@
 package com.scu.stu.service;
 
-import com.scu.stu.common.Result;
 import com.scu.stu.pojo.DO.queryParam.InboundQuery;
 import com.scu.stu.pojo.DTO.InboundDTO;
 import com.scu.stu.pojo.DTO.InboundSubDTO;
@@ -27,5 +26,5 @@ public interface InboundService {
     /**
      * 创建入库单
      */
-    Result create(InboundDTO inboundDTO, List<InboundSubDTO> inboundSubDTOList, String bookingId);
+    boolean create(InboundDTO inboundDTO, List<InboundSubDTO> inboundSubDTOList);
 }

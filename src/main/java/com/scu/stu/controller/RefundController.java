@@ -1,17 +1,20 @@
 package com.scu.stu.controller;
 
 import com.alibaba.fastjson.JSON;
+import com.scu.stu.common.RedisLock;
 import com.scu.stu.common.Result;
 import com.scu.stu.common.RoleEnum;
+import com.scu.stu.common.pay.PayType;
 import com.scu.stu.pojo.DO.LoginInfoDO;
+import com.scu.stu.pojo.DO.queryParam.BookingQuery;
 import com.scu.stu.pojo.DO.queryParam.RefundQuery;
-import com.scu.stu.pojo.DTO.PayDTO;
-import com.scu.stu.pojo.DTO.PayMessage;
-import com.scu.stu.pojo.DTO.RefundDTO;
-import com.scu.stu.pojo.DTO.RefundSubDTO;
+import com.scu.stu.pojo.DTO.*;
+import com.scu.stu.pojo.DTO.message.Item;
+import com.scu.stu.pojo.DTO.message.PayMessage;
 import com.scu.stu.pojo.VO.RefundSubVO;
 import com.scu.stu.pojo.VO.RefundVO;
 import com.scu.stu.pojo.VO.param.RefundParam;
+import com.scu.stu.service.BookingService;
 import com.scu.stu.service.RefundService;
 import com.scu.stu.service.UserService;
 import com.scu.stu.utils.DateUtils;
@@ -38,10 +41,16 @@ import java.util.stream.Collectors;
 public class RefundController {
 
     @Autowired
+    private RedisLock redisLock;
+
+    @Autowired
     private Snowflake snowflake;
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private BookingService bookingService;
 
     @Resource
     private RefundService refundService;
@@ -52,13 +61,21 @@ public class RefundController {
     @Value("${rocketmq.topic.pay}")
     private String topic;
 
-    @Value("${rocketmq.tag.pay}")
-    private String tag;
+    @Value("${rocketmq.topic.relation}")
+    private String relation;
+
+    private final String tokenCheck = "token";
+
+    private final long expireTime = 30*60*1000; //30分钟
 
     @GetMapping("api/getRefundList")
     public Result getList(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data){
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             RefundQuery query = JSON.parseObject(data, RefundQuery.class);
             List<RefundDTO> refundDTOList = refundService.query(query);
             if(refundDTOList != null && !CollectionUtils.isEmpty(refundDTOList)){
@@ -82,6 +99,10 @@ public class RefundController {
     public Result total(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data){
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             RefundQuery query = JSON.parseObject(data, RefundQuery.class);
             return Result.success(refundService.total(query));
         } else {
@@ -93,6 +114,10 @@ public class RefundController {
     public Result detail(@RequestParam(value = "token") String token, @RequestParam(value = "data") String refundId){
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             List<RefundSubDTO> refundSubDTOS = refundService.detail(refundId);
             if(refundSubDTOS != null && !CollectionUtils.isEmpty(refundSubDTOS)){
                 List<RefundSubVO> refundSubVOList = refundSubDTOS.stream().map(refundSubDTO -> {
@@ -114,11 +139,21 @@ public class RefundController {
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             LoginInfoDO loginInfoDO = userService.queryLoginInfo(userId);
             if (loginInfoDO.getRole() == RoleEnum.EDITOR.getRole()) {
                 return Result.error("供应商不能创建退供单，请联系仓库小二创建");
             }
             RefundParam param = JSON.parseObject(data, RefundParam.class);
+            BookingQuery bookingQuery = new BookingQuery();
+            bookingQuery.setBookingId(param.getBookingId());
+            List<BookingDTO> bookingDTOS = bookingService.query(bookingQuery);
+            if(bookingDTOS == null || CollectionUtils.isEmpty(bookingDTOS)){
+                return Result.error("预约单无效，请输入正确的预约单ID");
+            }
+
             RefundDTO refundDTO = new RefundDTO();
             String refundId = snowflake.nextIdStr();
             BeanUtils.copyProperties(param, refundDTO);
@@ -131,17 +166,33 @@ public class RefundController {
                     refundSubDTO.setRefundId(refundId);
                     return refundSubDTO;
                 }).collect(Collectors.toList());
+
+                //发送payOrder创建消息
                 PayMessage message = new PayMessage();
                 message.setBookingId(param.getBookingId());
                 message.setInspectorId(userId);
-                message.setType();// 2:退供
+                message.setType(PayType.REFUND.getCode());// 2:退供
+                List<Item> itemList = param.getItemList().stream().map(paramItem -> {
+                    Item item = new Item();
+                    BeanUtils.copyProperties(paramItem, item);
+                    return item;
+                }).collect(Collectors.toList());
+                message.setItemList(itemList);
                 Message<String> msgs = MessageBuilder.withPayload(JSON.toJSONString(message)).build();
                 SendResult sendResult = rocketMQService.syncSend(topic, msgs);
-                if(sendResult.getSendStatus() == SendStatus.SEND_OK){
-                    return refundService.create(refundDTO, refundSubDTOList, param.getBookingId());
-                } else {
-                    return Result.error("创建付款单失败");
+
+                //发送relation更新信息
+                RelationDTO relationDTO = new RelationDTO();
+                relationDTO.setBookingId(param.getBookingId());
+                relationDTO.setRefundId(refundId);
+                msgs = MessageBuilder.withPayload(JSON.toJSONString(relationDTO)).build();
+                SendResult sendResult2 = rocketMQService.syncSend(relation.concat(":REFUND"), msgs);
+                if(sendResult.getSendStatus() == SendStatus.SEND_OK && sendResult2.getSendStatus() == SendStatus.SEND_OK){
+                    if(refundService.create(refundDTO, refundSubDTOList)){
+                        return Result.success();
+                    }
                 }
+                return Result.error("创建付款单失败");
             } else {
                 return Result.error("退供货品列表不能为空");
             }
@@ -150,11 +201,14 @@ public class RefundController {
         }
     }
 
-    @GetMapping("api/testSend")
-    public Result send(){
-        Message<String> msgs = MessageBuilder.withPayload("这是一个测试message"+new Date()).build();
-        String destination = topic+":"+tag;
-        SendResult sendResult = rocketMQService.syncSend(destination, msgs);
-        return Result.success(sendResult.getSendStatus() == SendStatus.SEND_OK);
+    public boolean RefreshToken(String userId) {
+        if(!redisLock.lock(userId, tokenCheck, expireTime)){
+            redisLock.unlock(userId,tokenCheck);
+            redisLock.lock(userId,tokenCheck,expireTime);
+            return true;
+        } else {
+            redisLock.unlock(userId, tokenCheck);
+            return false;
+        }
     }
 }

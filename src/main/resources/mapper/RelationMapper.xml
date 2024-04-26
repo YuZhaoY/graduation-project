@@ -10,10 +10,11 @@
         <result property="inboundId" column="inbound_id" jdbcType="VARCHAR"/>
         <result property="payId" column="pay_id" jdbcType="VARCHAR"/>
         <result property="refundId" column="refund_id" jdbcType="VARCHAR"/>
+        <result property="returnId" column="return_id" jdbcType="VARCHAR"/>
     </resultMap>
 
     <sql id="base">
-        id, replenishment_id, sale_id, booking_id, inbound_id, pay_id, refund_id
+        id, replenishment_id, sale_id, booking_id, inbound_id, pay_id, refund_id, return_id
     </sql>
 
     <select id="query" parameterType="com.scu.stu.pojo.DO.queryParam.RelationQuery" resultMap="Relation">
@@ -41,6 +42,40 @@
             </if>
             <if test="refundId != null and refundId !=''">
                 and refund_id = #{refundId}
+            </if>
+            <if test="returnId != null and returnId !=''">
+                and return_id = #{returnId}
+            </if>
+        </where>
+    </select>
+
+    <select id="total" resultType="java.lang.Integer">
+        select COUNT(*)
+        from relation
+        <where>
+            <if test="id != null and id != 0">
+                id = #{id}
+            </if>
+            <if test="replenishmentId != null and replenishmentId != ''">
+                and replenishment_id = #{replenishmentId}
+            </if>
+            <if test="saleId != null and saleId != ''">
+                and sale_id = #{saleId}
+            </if>
+            <if test="bookingId != null and bookingId !=''">
+                and booking_id = #{bookingId}
+            </if>
+            <if test="inboundId != null and inboundId !=''">
+                and inbound_id = #{inboundId}
+            </if>
+            <if test="payId != null and payId !=''">
+                and pay_id = #{payId}
+            </if>
+            <if test="refundId != null and refundId !=''">
+                and refund_id = #{refundId}
+            </if>
+            <if test="returnId != null and returnId !=''">
+                and return_id = #{returnId}
             </if>
         </where>
     </select>
@@ -71,7 +106,10 @@
                 pay_id = #{payId},
             </if>
             <if test="refundId != null and refundId !=''">
-                refund_id = #{refundId}
+                refund_id = #{refundId},
+            </if>
+            <if test="returnId != null and returnId !=''">
+                return_id = #{returnId}
             </if>
         </set>
         where id = #{id}
@@ -87,4 +125,13 @@
         </foreach>
     </select>
 
+    <select id="queryBySaleIdList" resultMap="Relation">
+        select
+        <include refid="base" />
+        from relation
+        where sale_id in
+        <foreach collection="saleIdList" item="saleId" open="(" close=")" separator=",">
+            #{saleId}
+        </foreach>
+    </select>
 </mapper>

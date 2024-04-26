@@ -1,6 +1,7 @@
 package com.scu.stu.controller;
 
 import com.alibaba.fastjson.JSON;
+import com.scu.stu.common.RedisLock;
 import com.scu.stu.common.Result;
 import com.scu.stu.pojo.DO.queryParam.StoreQuery;
 import com.scu.stu.pojo.DTO.StoreDTO;
@@ -9,6 +10,7 @@ import com.scu.stu.pojo.VO.param.StoreParam;
 import com.scu.stu.service.StoreService;
 import com.scu.stu.utils.JwtUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,10 +22,17 @@ import java.util.stream.Collectors;
 @CrossOrigin
 public class StoreController {
 
+    @Autowired
+    private RedisLock redisLock;
+
     @Resource
     private StoreService storeService;
 
-    @GetMapping(value = "api/getStoreListPage")
+    private final String tokenCheck = "token";
+
+    private final long expireTime = 30*60*1000; //30分钟
+
+    @GetMapping("api/getStoreListPage")
     public Result getStoreListPage(@RequestParam(value = "query") String data){
         StoreQuery query = new StoreQuery();
         if(data != null && !"".equals(data)){
@@ -42,7 +51,7 @@ public class StoreController {
         }
     }
 
-    @GetMapping(value = "api/getStoreList")
+    @GetMapping("api/getStoreList")
     public Result getStoreList(@RequestParam(value = "query") String data){
         StoreQuery query = new StoreQuery();
         if(data != null && !"".equals(data)){
@@ -61,7 +70,7 @@ public class StoreController {
         }
     }
 
-    @GetMapping(value = "api/getStoreTotal")
+    @GetMapping("api/getStoreTotal")
     public Result getTotal(@RequestParam(value = "query") String data){
         StoreQuery query = new StoreQuery();
         if(data != null && !"".equals(data)){
@@ -71,7 +80,7 @@ public class StoreController {
         return Result.success(total);
     }
 
-    @PutMapping(value = "api/createStore")
+    @PutMapping("api/createStore")
     public Result create(@RequestParam("data") String data){
         StoreParam storeParam = JSON.parseObject(data, StoreParam.class);
         String storeId = storeService.getStoreId();
@@ -86,7 +95,7 @@ public class StoreController {
         }
     }
 
-    @PutMapping(value = "api/updateStore")
+    @PutMapping("api/updateStore")
     public Result update(@RequestParam("data") String data){
         StoreParam storeParam = JSON.parseObject(data, StoreParam.class);
         StoreQuery query = new StoreQuery();
@@ -103,10 +112,14 @@ public class StoreController {
             return Result.error("更新仓信息失败");
         }
     }
-    @PutMapping(value = "api/deleteStore")
+    @PutMapping("api/deleteStore")
     public Result delete(@RequestParam("data") String storeId, @RequestParam("token") String token){
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             if(storeId == null || "".equals(storeId)){
                 return Result.error("ID为空");
             }
@@ -117,6 +130,17 @@ public class StoreController {
             }
         } else {
             return Result.error("未查到身份信息");
+        }
+    }
+
+    public boolean RefreshToken(String userId) {
+        if(!redisLock.lock(userId, tokenCheck, expireTime)){
+            redisLock.unlock(userId,tokenCheck);
+            redisLock.lock(userId,tokenCheck,expireTime);
+            return true;
+        } else {
+            redisLock.unlock(userId, tokenCheck);
+            return false;
         }
     }
 }

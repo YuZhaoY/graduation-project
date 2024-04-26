@@ -6,6 +6,16 @@ import lombok.Data;
 public class PayQuery {
 
     /**
+     * page
+     */
+    private int page = 1;
+
+    /**
+     * limit
+     */
+    private int limit = 10;
+
+    /**
      * 付款单ID
      */
     private String payId;

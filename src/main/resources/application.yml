@@ -15,6 +15,9 @@ spring:
       restart:
         enabled: true
         exclude: application.yml,static
+  redis:
+    host: 127.0.0.1
+    port: 6379
 #分页插件配置
 pagehelper:
   helper-dialect: mysql
@@ -50,5 +53,4 @@ rocketmq:
   topic:
     pay: PAY_ORDER
     relation: RELATION
-  tag:
-    pay: PAY
+    sale: SALE_UPDATE

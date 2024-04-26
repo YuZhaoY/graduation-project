@@ -1,6 +1,5 @@
 package com.scu.stu.mapper;
 
-import com.scu.stu.pojo.DO.ReplenishmentSubDO;
 import com.scu.stu.pojo.DO.SaleDO;
 import com.scu.stu.pojo.DO.SaleSubDO;
 import com.scu.stu.pojo.DO.queryParam.SaleQuery;
@@ -10,7 +9,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Mapper
-@Repository
 public interface SaleMapper {
 
     List<SaleDO> querySaleOrder(SaleQuery query);

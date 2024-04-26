@@ -9,7 +9,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Mapper
-@Repository
 public interface RefundMapper {
 
     List<RefundDO> query(RefundQuery query);

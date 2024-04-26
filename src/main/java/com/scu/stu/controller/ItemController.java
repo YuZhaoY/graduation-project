@@ -1,6 +1,7 @@
 package com.scu.stu.controller;
 
 import com.alibaba.fastjson.JSON;
+import com.scu.stu.common.RedisLock;
 import com.scu.stu.common.Result;
 import com.scu.stu.pojo.DO.queryParam.ItemQuery;
 import com.scu.stu.pojo.DTO.ItemDTO;
@@ -9,6 +10,7 @@ import com.scu.stu.pojo.VO.ItemVO;
 import com.scu.stu.service.ItemService;
 import com.scu.stu.utils.JwtUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,10 +22,17 @@ import java.util.stream.Collectors;
 @CrossOrigin
 public class ItemController {
 
+    @Autowired
+    private RedisLock redisLock;
+
     @Resource
     private ItemService itemService;
 
-    @GetMapping(value = "api/getItemList")
+    private final String tokenCheck = "token";
+
+    private final long expireTime = 30*60*1000; //30分钟
+
+    @GetMapping("api/getItemList")
     public Result getItemList(@RequestParam(value = "query") String data){
         ItemQuery query = new ItemQuery();
         if(data != null && !"".equals(data)){
@@ -41,7 +50,7 @@ public class ItemController {
         return Result.success(result);
     }
 
-    @GetMapping(value = "api/getTotal")
+    @GetMapping("api/getTotal")
     public Result getTotal(@RequestParam(value = "query") String data){
         ItemQuery query = new ItemQuery();
         if(data != null && !"".equals(data)){
@@ -51,7 +60,7 @@ public class ItemController {
         return Result.success(total);
     }
 
-    @PutMapping(value = "api/createItem")
+    @PutMapping("api/createItem")
     public Result create(@RequestParam("data") String data){
         ItemParam itemParam = JSON.parseObject(data, ItemParam.class);
         String itemId = itemService.getItemId();
@@ -66,7 +75,7 @@ public class ItemController {
         }
     }
 
-    @PutMapping(value = "api/updateItem")
+    @PutMapping("api/updateItem")
     public Result update(@RequestParam("data") String data){
         ItemParam itemParam = JSON.parseObject(data, ItemParam.class);
         ItemQuery query = new ItemQuery();
@@ -83,10 +92,14 @@ public class ItemController {
             return Result.error("更新货品失败");
         }
     }
-    @PutMapping(value = "api/delete")
+    @PutMapping("api/delete")
     public Result delete(@RequestParam("data") String itemId, @RequestParam("token") String token){
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             if(itemId == null || "".equals(itemId)){
                 return Result.error("ID为空");
             }
@@ -97,6 +110,17 @@ public class ItemController {
             }
         } else {
             return Result.error("未查到身份信息");
+        }
+    }
+
+    public boolean RefreshToken(String userId) {
+        if(!redisLock.lock(userId, tokenCheck, expireTime)){
+            redisLock.unlock(userId,tokenCheck);
+            redisLock.lock(userId,tokenCheck,expireTime);
+            return true;
+        } else {
+            redisLock.unlock(userId, tokenCheck);
+            return false;
         }
     }
 }

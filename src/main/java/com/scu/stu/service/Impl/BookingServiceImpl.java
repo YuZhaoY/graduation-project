@@ -30,9 +30,6 @@ public class BookingServiceImpl implements BookingService {
     private BookingMapper bookingMapper;
 
     @Resource
-    private RelationMapper relationMapper;
-
-    @Resource
     private SaleMapper saleMapper;
 
     @Override
@@ -79,20 +76,13 @@ public class BookingServiceImpl implements BookingService {
         SaleQuery saleQuery = new SaleQuery();
         saleQuery.setSaleId(saleId);
         List<SaleDO> saleDOS = saleMapper.querySaleOrder(saleQuery);
-        if(saleDOS != null && !CollectionUtils.isEmpty(saleDOS)){
+        if (saleDOS != null && !CollectionUtils.isEmpty(saleDOS)) {
             SaleDO saleDO = saleDOS.get(0);
             saleDO.setStatus(SaleStatus.BOOKING.getCode());
             saleMapper.updateSaleOrder(saleDO);
         }
-        RelationQuery query = new RelationQuery();
-        query.setSaleId(saleId);
-        List<RelationDO> relationDOS = relationMapper.query(query);
-        if(relationDOS != null && !CollectionUtils.isEmpty(relationDOS)){
-            RelationDO relationDO = relationDOS.get(0);
-            relationDO.setBookingId(bookingDTO.getBookingId());
-            return bookingMapper.create(bookingDO) && relationMapper.update(relationDO);
-        }
-        return false;
+
+        return bookingMapper.create(bookingDO);
     }
 
     @Override

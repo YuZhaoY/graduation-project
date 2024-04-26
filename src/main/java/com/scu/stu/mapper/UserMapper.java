@@ -8,7 +8,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Mapper
-@Repository
 public interface UserMapper {
     LoginInfoDO queryLoginInfo(String username);
 
@@ -22,4 +21,7 @@ public interface UserMapper {
 
     List<UserInfoDO> queryUserListInfo(int role);
 
+    boolean create(UserInfoDO userInfoDO);
+
+    boolean createLogin(LoginInfoDO loginInfoDO);
 }

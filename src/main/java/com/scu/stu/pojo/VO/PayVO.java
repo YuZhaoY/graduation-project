@@ -41,4 +41,9 @@ public class PayVO {
      * 协议状态
      */
     private String status;
+
+    /**
+     * 供应商收款二维码
+     */
+    private String QRCode;
 }

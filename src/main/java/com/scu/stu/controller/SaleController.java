@@ -1,17 +1,21 @@
 package com.scu.stu.controller;
 
 import com.alibaba.fastjson.JSON;
+import com.scu.stu.common.RedisLock;
 import com.scu.stu.common.Result;
 import com.scu.stu.common.RoleEnum;
 import com.scu.stu.common.SaleStatus;
 import com.scu.stu.pojo.DO.LoginInfoDO;
+import com.scu.stu.pojo.DO.queryParam.ReplenishmentQuery;
 import com.scu.stu.pojo.DO.queryParam.SaleQuery;
 import com.scu.stu.pojo.DTO.RelationDTO;
+import com.scu.stu.pojo.DTO.ReplenishmentDTO;
 import com.scu.stu.pojo.DTO.SaleDTO;
 import com.scu.stu.pojo.DTO.SaleSubDTO;
 import com.scu.stu.pojo.VO.SaleSubVO;
 import com.scu.stu.pojo.VO.SaleVO;
 import com.scu.stu.pojo.VO.param.SaleParam;
+import com.scu.stu.service.ReplenishmentService;
 import com.scu.stu.service.SaleService;
 import com.scu.stu.service.UserService;
 import com.scu.stu.utils.DateUtils;
@@ -37,6 +41,9 @@ import java.util.stream.Collectors;
 @CrossOrigin
 public class SaleController {
 
+    @Autowired
+    private RedisLock redisLock;
+
     @Resource
     private SaleService saleService;
 
@@ -46,18 +53,28 @@ public class SaleController {
     @Autowired
     private Snowflake snowflake;
 
+    @Resource
+    private ReplenishmentService replenishmentService;
+
     @Resource(name = "rocketMQService")
     private RocketMQTemplate rocketMQService;
 
     @Value("${rocketmq.topic.relation}")
     private String topic;
 
-    @GetMapping(value = "api/getSaleOrderList")
+    private final String tokenCheck = "token";
+
+    private final long expireTime = 30*60*1000; //30分钟
+
+    @GetMapping("api/getSaleOrderList")
     public Result getSaleOrderList(@RequestParam("token") String token, @RequestParam("data") String data){
         String tokenValue = JwtUtils.verity(token);
         if(tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
-            SaleQuery query = JSON.parseObject(data, SaleQuery.class);
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
+            SaleQuery query = JSON.parseObject(data, SaleQuery.class);
             LoginInfoDO loginInfoDO = userService.queryLoginInfo(userId);
             if(loginInfoDO.getRole() == RoleEnum.ADMIN.getRole()){
                 query.setPurchaseId(userId);
@@ -81,12 +98,15 @@ public class SaleController {
         }
     }
 
-    @GetMapping(value = "api/getSaleTotal")
+    @GetMapping("api/getSaleTotal")
     public Result total(@RequestParam("token") String token, @RequestParam("data") String data){
         String tokenValue = JwtUtils.verity(token);
         if(tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
-            SaleQuery query = JSON.parseObject(data, SaleQuery.class);
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
+            SaleQuery query = JSON.parseObject(data, SaleQuery.class);
             LoginInfoDO loginInfoDO = userService.queryLoginInfo(userId);
             if(loginInfoDO.getRole() == RoleEnum.ADMIN.getRole()){
                 query.setPurchaseId(userId);
@@ -100,7 +120,7 @@ public class SaleController {
         }
     }
 
-    @GetMapping(value = "api/getSaleDetail")
+    @GetMapping("api/getSaleDetail")
     public Result getDetail(@RequestParam("data") String saleId){
         List<SaleSubDTO> saleSubDTOS = saleService.getDetail(saleId);
         if(saleSubDTOS != null && !CollectionUtils.isEmpty(saleSubDTOS)){
@@ -114,13 +134,22 @@ public class SaleController {
         return Result.success();
     }
 
-    @PostMapping(value = "api/createSale")
+    @PostMapping("api/createSale")
     public Result create(@RequestParam("token") String token, @RequestParam("data") String data){
         String tokenValue = JwtUtils.verity(token);
         if(tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             SaleParam saleParam = JSON.parseObject(data, SaleParam.class);
             SaleDTO saleDTO = new SaleDTO();
+            ReplenishmentQuery replenishmentQuery = new ReplenishmentQuery();
+            replenishmentQuery.setReplenishmentId(saleParam.getReplenishmentId());
+            List<ReplenishmentDTO> replenishmentDTOS = replenishmentService.query(replenishmentQuery);
+            if(replenishmentDTOS == null || CollectionUtils.isEmpty(replenishmentDTOS)){
+                return Result.error("补货计划无效，请输入正确的补货计划ID");
+            }
             BeanUtils.copyProperties(saleParam, saleDTO);
             String saleId = snowflake.nextIdStr();
             saleDTO.setSaleId(saleId);
@@ -132,6 +161,7 @@ public class SaleController {
                 saleSubDTO.setSaleId(saleId);
                 return saleSubDTO;
             }).collect(Collectors.toList());
+
             //发送relation创建信息
             RelationDTO relationDTO = new RelationDTO();
             relationDTO.setReplenishmentId(saleParam.getReplenishmentId());
@@ -149,11 +179,14 @@ public class SaleController {
         }
     }
 
-    @PostMapping(value = "api/cancelSale")
+    @PostMapping("api/cancelSale")
     public Result cancel(@RequestParam("token") String token, @RequestParam("data") String saleId) {
         String tokenValue = JwtUtils.verity(token);
         if(tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             SaleQuery query = new SaleQuery();
             query.setSaleId(saleId);
             LoginInfoDO loginInfoDO = userService.queryLoginInfo(userId);
@@ -172,7 +205,7 @@ public class SaleController {
                     return Result.error("采购单已生效，无法取消");
                 }
                 saleDTO.setStatus(SaleStatus.CANCEL.getCode());
-                if(saleService.updateStatus(saleDTO)){
+                if(saleService.updateSale(saleDTO)){
                     return Result.success();
                 } else {
                     return Result.error("取消失败");
@@ -185,11 +218,14 @@ public class SaleController {
         }
     }
 
-    @PostMapping(value = "api/confirmSale")
+    @PostMapping("api/confirmSale")
     public Result confirmSale(@RequestParam("token") String token, @RequestParam("data") String saleId) {
         String tokenValue = JwtUtils.verity(token);
         if(tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             SaleQuery query = new SaleQuery();
             query.setSaleId(saleId);
             query.setFarmerId(userId);
@@ -203,7 +239,7 @@ public class SaleController {
                     return Result.error("采购单已取消，无法确认");
                 }
                 saleDTO.setStatus(SaleStatus.CONFIRM.getCode());
-                if(saleService.updateStatus(saleDTO)){
+                if(saleService.updateSale(saleDTO)){
                     return Result.success();
                 } else {
                     return Result.error("确认失败");
@@ -216,7 +252,7 @@ public class SaleController {
         }
     }
 
-    @PostMapping(value = "api/updateSale")
+    @PostMapping("api/updateSale")
     public Result update(@RequestBody SaleParam param) {
         SaleQuery query = new SaleQuery();
         query.setSaleId(param.getSaleId());
@@ -271,6 +307,17 @@ public class SaleController {
             return Result.success();
         } else {
             return Result.error("更新采购单失败");
+        }
+    }
+
+    public boolean RefreshToken(String userId) {
+        if(!redisLock.lock(userId, tokenCheck, expireTime)){
+            redisLock.unlock(userId,tokenCheck);
+            redisLock.lock(userId,tokenCheck,expireTime);
+            return true;
+        } else {
+            redisLock.unlock(userId, tokenCheck);
+            return false;
         }
     }
 }

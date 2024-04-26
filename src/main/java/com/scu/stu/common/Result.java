@@ -50,4 +50,14 @@ public class Result<T> {
         rb.setData(null);
         return rb;
     }
+
+    /**
+     * 登出
+     */
+    public static Result logout() {
+        Result rb = new Result();
+        rb.setCode(CommonStatusEnum.LOGOUT.getCode());
+        rb.setData(null);
+        return rb;
+    }
 }

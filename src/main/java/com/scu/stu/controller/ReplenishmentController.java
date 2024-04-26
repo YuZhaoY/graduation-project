@@ -1,6 +1,7 @@
 package com.scu.stu.controller;
 
 import com.alibaba.fastjson.JSON;
+import com.scu.stu.common.RedisLock;
 import com.scu.stu.common.ReplenishmentStatus;
 import com.scu.stu.common.Result;
 import com.scu.stu.pojo.DO.queryParam.ReplenishmentQuery;
@@ -31,18 +32,28 @@ import java.util.stream.Collectors;
 @CrossOrigin
 public class ReplenishmentController {
 
+    @Autowired
+    private RedisLock redisLock;
+
     @Resource
     private ReplenishmentService replenishmentService;
 
     @Autowired
     private Snowflake snowflake;
 
-    @PostMapping(value = "api/getReplenishmentList")
+    private final String tokenCheck = "token";
+
+    private final long expireTime = 30*60*1000; //30分钟
+
+    @PostMapping("api/getReplenishmentList")
     public Result getReplenishmentList(@RequestParam("token") String token, @RequestParam("data") String data){
         String tokenValue = JwtUtils.verity(token);
         if(tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
             ReplenishmentQuery query = JSON.parseObject(data, ReplenishmentQuery.class);
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             query.setPurchaseId(userId);
             List<ReplenishmentDTO> replenishmentDTOS = replenishmentService.query(query);
             if(!CollectionUtils.isEmpty(replenishmentDTOS)){
@@ -61,12 +72,15 @@ public class ReplenishmentController {
         }
     }
 
-    @PostMapping(value = "api/getTotal")
+    @PostMapping("api/getTotal")
     public Result getTotal(@RequestParam("token") String token, @RequestParam("data") String data){
         String tokenValue = JwtUtils.verity(token);
         if(tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
-            ReplenishmentQuery query = JSON.parseObject(data, ReplenishmentQuery.class);
             String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
+            ReplenishmentQuery query = JSON.parseObject(data, ReplenishmentQuery.class);
             query.setPurchaseId(userId);
             int total = replenishmentService.total(query);
             return Result.success(total);
@@ -75,7 +89,7 @@ public class ReplenishmentController {
         }
     }
 
-    @GetMapping(value = "api/getReplenishmentDetail")
+    @GetMapping("api/getReplenishmentDetail")
     public Result querySub(@RequestParam("replenishmentId") String replenishmentId){
         if(replenishmentId == null || "".equals(replenishmentId)){
             return Result.error("补货计划ID为空");
@@ -94,7 +108,7 @@ public class ReplenishmentController {
         return Result.success();
     }
 
-    @GetMapping(value = "api/cancelReplenishment")
+    @GetMapping("api/cancelReplenishment")
     public Result cancelReplenishment(@RequestParam("replenishmentId") String replenishmentId) throws ParseException {
         if(replenishmentId == null || "".equals(replenishmentId)){
             return Result.error("补货计划ID为空");
@@ -121,10 +135,14 @@ public class ReplenishmentController {
         }
     }
 
-    @PostMapping(value = "api/createReplenishment")
+    @PostMapping("api/createReplenishment")
     public Result create(@RequestParam("data") String data, @RequestParam("token") String token) throws ParseException {
         String tokenValue = JwtUtils.verity(token);
         if(tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
             ReplenishmentParam replenishmentParam = JSON.parseObject(data, ReplenishmentParam.class);
             if(replenishmentParam.getItemList() == null || CollectionUtils.isEmpty(replenishmentParam.getItemList())) {
                 return Result.error("货品为空，请重新上传");
@@ -132,7 +150,6 @@ public class ReplenishmentController {
             if(!isValid(null, replenishmentParam)){
                 return Result.error("存在生效中的货品，请重新选择");
             }
-            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
             ReplenishmentDTO replenishmentDTO = new ReplenishmentDTO();
             replenishmentDTO.setReplenishmentId(snowflake.nextIdStr());
             replenishmentDTO.setPurchaseId(userId);
@@ -158,7 +175,7 @@ public class ReplenishmentController {
         }
     }
 
-    @PostMapping(value = "api/updateReplenishment")
+    @PostMapping("api/updateReplenishment")
     public Result update(@RequestBody ReplenishmentParam param) throws ParseException {
         ReplenishmentQuery query = new ReplenishmentQuery();
         query.setReplenishmentId(param.getReplenishmentId());
@@ -227,13 +244,6 @@ public class ReplenishmentController {
         }
     }
 
-    @GetMapping(value = "api/test")
-    public Result updateStatus(){
-        replenishmentService.updateInvalid();
-        replenishmentService.updateValid();
-        return Result.success();
-    }
-
     /**
      * 判断是否可以创建补货计划，品是否已经存在于补货计划中
      * @return
@@ -281,5 +291,16 @@ public class ReplenishmentController {
             }
         }
         return true;
+    }
+
+    public boolean RefreshToken(String userId) {
+        if(!redisLock.lock(userId, tokenCheck, expireTime)){
+            redisLock.unlock(userId,tokenCheck);
+            redisLock.lock(userId,tokenCheck,expireTime);
+            return true;
+        } else {
+            redisLock.unlock(userId, tokenCheck);
+            return false;
+        }
     }
 }
