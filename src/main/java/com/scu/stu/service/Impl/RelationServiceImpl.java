@@ -48,6 +48,23 @@ public class RelationServiceImpl implements RelationService {
         }
         return null;
     }
+
+    @Override
+    public List<RelationDTO> queryByIdListPage(List<Integer> idList, RelationQuery query) {
+        PageHelper.startPage(query.getPage(), query.getLimit());
+        List<RelationDO> relationDOList = relationMapper.batchQuery(idList, query);
+        if(relationDOList != null && !CollectionUtils.isEmpty(relationDOList)){
+            List<RelationDTO> relationDTOList = relationDOList.stream().map(relationDO -> {
+                RelationDTO relationDTO = new RelationDTO();
+                BeanUtils.copyProperties(relationDO, relationDTO);
+                return relationDTO;
+            }).collect(Collectors.toList());
+            PageInfo<RelationDTO> pageInfo = new PageInfo<>(relationDTOList);
+            return pageInfo.getList();
+        }
+        return null;
+    }
+
     @Override
     public List<RelationDTO> query(RelationQuery query) {
         PageHelper.startPage(query.getPage(), query.getLimit());

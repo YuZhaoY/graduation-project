@@ -4,6 +4,7 @@ import com.scu.stu.pojo.DO.InboundDO;
 import com.scu.stu.pojo.DO.InboundSubDO;
 import com.scu.stu.pojo.DO.queryParam.InboundQuery;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -12,6 +13,8 @@ import java.util.List;
 public interface InboundMapper {
 
     List<InboundDO> query(InboundQuery query);
+
+    List<InboundDO> batchQuery(@Param("idList") List<String> idList, @Param("query") InboundQuery query);
 
     int total(InboundQuery query);
 

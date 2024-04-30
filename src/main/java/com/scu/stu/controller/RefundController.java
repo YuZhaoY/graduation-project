@@ -16,6 +16,7 @@ import com.scu.stu.pojo.VO.RefundVO;
 import com.scu.stu.pojo.VO.param.RefundParam;
 import com.scu.stu.service.BookingService;
 import com.scu.stu.service.RefundService;
+import com.scu.stu.service.RelationService;
 import com.scu.stu.service.UserService;
 import com.scu.stu.utils.DateUtils;
 import com.scu.stu.utils.JwtUtils;
@@ -32,7 +33,6 @@ import org.springframework.web.bind.annotation.*;
 import wiki.xsx.core.snowflake.config.Snowflake;
 
 import javax.annotation.Resource;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -55,6 +55,9 @@ public class RefundController {
     @Resource
     private RefundService refundService;
 
+    @Resource
+    private RelationService relationService;
+
     @Resource(name = "rocketMQService")
     private RocketMQTemplate rocketMQService;
 
@@ -68,7 +71,7 @@ public class RefundController {
 
     private final long expireTime = 30*60*1000; //30分钟
 
-    @GetMapping("api/getRefundList")
+    @GetMapping("api/admin/getRefundList")
     public Result getList(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data){
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
@@ -95,7 +98,51 @@ public class RefundController {
 
     }
 
-    @GetMapping("api/getRefundTotal")
+    @GetMapping("api/editor/getRefundList")
+    public Result getEditorList(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data){
+        String tokenValue = JwtUtils.verity(token);
+        if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
+            RefundQuery query = JSON.parseObject(data, RefundQuery.class);
+
+            //查询当前供应商下预约单
+            BookingQuery bookingQuery =new BookingQuery();
+            bookingQuery.setFarmerId(userId);
+            List<BookingDTO> bookingDTOList = bookingService.queryNoPage(bookingQuery);
+
+            if(bookingDTOList != null && !CollectionUtils.isEmpty(bookingDTOList)){
+                List<String> bookingIdList = bookingDTOList.stream().map(BookingDTO::getBookingId).collect(Collectors.toList());
+                //查询关系表,获取退供单ID列表
+                List<RelationDTO> relationDTOS = relationService.queryByBookingList(bookingIdList);
+                if (relationDTOS != null && !CollectionUtils.isEmpty(relationDTOS)) {
+                    List<String> refundIdList = relationDTOS.stream().map(RelationDTO::getRefundId).collect(Collectors.toList());
+                    if (!CollectionUtils.isEmpty(refundIdList)) {
+                        //查询退供单列表
+                        List<RefundDTO> refundDTOList = refundService.batchQuery(refundIdList, query);
+                        if(refundDTOList != null && !CollectionUtils.isEmpty(refundDTOList)){
+                            List<RefundVO> refundVOList = refundDTOList.stream().map(refundDTO -> {
+                                RefundVO refundVO = new RefundVO();
+                                BeanUtils.copyProperties(refundDTO, refundVO);
+                                refundVO.setGMTCreate(DateUtils.format(refundDTO.getGMTCreate()));
+                                refundVO.setRefundTime(DateUtils.format(refundDTO.getRefundTime()));
+                                return refundVO;
+                            }).collect(Collectors.toList());
+                            return Result.success(refundVOList);
+                        }
+                    }
+                }
+            }
+            return Result.success();
+        } else {
+            return Result.error("未查到身份信息");
+        }
+
+    }
+
+    @GetMapping("api/admin/getRefundTotal")
     public Result total(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data){
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
@@ -105,6 +152,42 @@ public class RefundController {
             }
             RefundQuery query = JSON.parseObject(data, RefundQuery.class);
             return Result.success(refundService.total(query));
+        } else {
+            return Result.error("未查到身份信息");
+        }
+    }
+
+    @GetMapping("api/editor/getRefundTotal")
+    public Result editorTotal(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data){
+        String tokenValue = JwtUtils.verity(token);
+        if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if(!RefreshToken(userId)){
+                return Result.logout();
+            }
+            RefundQuery query = JSON.parseObject(data, RefundQuery.class);
+
+            //查询当前供应商下预约单
+            BookingQuery bookingQuery =new BookingQuery();
+            bookingQuery.setFarmerId(userId);
+            List<BookingDTO> bookingDTOList = bookingService.queryNoPage(bookingQuery);
+
+            if(bookingDTOList != null && !CollectionUtils.isEmpty(bookingDTOList)){
+                List<String> bookingIdList = bookingDTOList.stream().map(BookingDTO::getBookingId).collect(Collectors.toList());
+                //查询关系表,获取退供单ID列表
+                List<RelationDTO> relationDTOS = relationService.queryByBookingList(bookingIdList);
+                if (relationDTOS != null && !CollectionUtils.isEmpty(relationDTOS)) {
+                    List<String> refundIdList = relationDTOS.stream().map(RelationDTO::getRefundId).collect(Collectors.toList());
+                    if (!CollectionUtils.isEmpty(refundIdList)) {
+                        //查询退供单列表
+                        List<RefundDTO> refundDTOList = refundService.batchQuery(refundIdList, query);
+                        if(refundDTOList != null && !CollectionUtils.isEmpty(refundDTOList)) {
+                            return Result.success(refundDTOList.size());
+                        }
+                    }
+                }
+            }
+            return Result.success(0);
         } else {
             return Result.error("未查到身份信息");
         }

@@ -42,6 +42,24 @@
         </where>
     </select>
 
+    <select id="batchQuery" resultMap="RefundOrder">
+        select
+        <include refid="base" />
+        from refund_order
+        <where>
+            refund_id in
+            <foreach collection="idList" item="refundId"  open="(" close=")" separator=",">
+                #{refundId}
+            </foreach>
+            <if test="query.storeId != null and query.storeId != ''">
+                and store_id = #{query.storeId}
+            </if>
+            <if test="query.inspectorId != null and query.inspectorId != ''">
+                and inspector_id = #{query.inspectorId}
+            </if>
+        </where>
+    </select>
+
     <select id="total" resultType="java.lang.Integer">
         select count(*)
         from refund_order

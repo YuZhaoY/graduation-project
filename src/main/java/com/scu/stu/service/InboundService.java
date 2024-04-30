@@ -14,6 +14,11 @@ public interface InboundService {
     List<InboundDTO> query(InboundQuery query);
 
     /**
+     * 批量查询
+     */
+    List<InboundDTO> batchQuery(List<String> inboundIdList, InboundQuery query);
+
+    /**
      * 查询入库单总数
      */
     int total(InboundQuery query);

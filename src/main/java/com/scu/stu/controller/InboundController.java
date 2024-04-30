@@ -19,6 +19,7 @@ import com.scu.stu.pojo.VO.InboundVO;
 import com.scu.stu.pojo.VO.param.InboundParam;
 import com.scu.stu.service.BookingService;
 import com.scu.stu.service.InboundService;
+import com.scu.stu.service.RelationService;
 import com.scu.stu.service.UserService;
 import com.scu.stu.utils.DateUtils;
 import com.scu.stu.utils.JwtUtils;
@@ -55,6 +56,9 @@ public class InboundController {
     private BookingService bookingService;
 
     @Resource
+    private RelationService relationService;
+
+    @Resource
     private InboundService inboundService;
 
     @Resource(name = "rocketMQService")
@@ -70,7 +74,7 @@ public class InboundController {
 
     private final long expireTime = 30*60*1000; //30分钟
 
-    @GetMapping("api/getInboundList")
+    @GetMapping("api/admin/getInboundList")
     public Result getList(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data){
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
@@ -97,7 +101,50 @@ public class InboundController {
 
     }
 
-    @GetMapping("api/getInboundTotal")
+    @GetMapping("api/editor/getInboundList")
+    public Result getEditorList(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data) {
+        String tokenValue = JwtUtils.verity(token);
+        if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if (!RefreshToken(userId)) {
+                return Result.logout();
+            }
+            InboundQuery query = JSON.parseObject(data, InboundQuery.class);
+
+            //查询当前供应商下预约单
+            BookingQuery bookingQuery = new BookingQuery();
+            bookingQuery.setFarmerId(userId);
+            List<BookingDTO> bookingDTOList = bookingService.queryNoPage(bookingQuery);
+
+            if (bookingDTOList != null && !CollectionUtils.isEmpty(bookingDTOList)) {
+                List<String> bookingIdList = bookingDTOList.stream().map(BookingDTO::getBookingId).collect(Collectors.toList());
+                //查询关系表,获取入库单ID列表
+                List<RelationDTO> relationDTOS = relationService.queryByBookingList(bookingIdList);
+                if (relationDTOS != null && !CollectionUtils.isEmpty(relationDTOS)) {
+                    List<String> inboundIdList = relationDTOS.stream().map(RelationDTO::getInboundId).collect(Collectors.toList());
+                    if (!CollectionUtils.isEmpty(inboundIdList)) {
+                        //查询入库单列表
+                        List<InboundDTO> inboundDTOList = inboundService.batchQuery(inboundIdList, query);
+                        if (inboundDTOList != null && !CollectionUtils.isEmpty(inboundDTOList)) {
+                            List<InboundVO> inboundVOList = inboundDTOList.stream().map(inboundDTO -> {
+                                InboundVO inboundVO = new InboundVO();
+                                BeanUtils.copyProperties(inboundDTO, inboundVO);
+                                inboundVO.setGMTCreate(DateUtils.format(inboundDTO.getGMTCreate()));
+                                inboundVO.setInboundTime(DateUtils.format(inboundDTO.getInboundTime()));
+                                return inboundVO;
+                            }).collect(Collectors.toList());
+                            return Result.success(inboundVOList);
+                        }
+                    }
+                }
+            }
+            return Result.success();
+        } else {
+            return Result.error("未查到身份信息");
+        }
+    }
+
+    @GetMapping("api/admin/getInboundTotal")
     public Result total(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data){
         String tokenValue = JwtUtils.verity(token);
         if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
@@ -107,6 +154,42 @@ public class InboundController {
             }
             InboundQuery query = JSON.parseObject(data, InboundQuery.class);
             return Result.success(inboundService.total(query));
+        } else {
+            return Result.error("未查到身份信息");
+        }
+    }
+
+    @GetMapping("api/editor/getInboundTotal")
+    public Result editorTotal(@RequestParam(value = "token") String token, @RequestParam(value = "data") String data){
+        String tokenValue = JwtUtils.verity(token);
+        if (tokenValue.startsWith(JwtUtils.TOKEN_SUCCESS)) {
+            String userId = tokenValue.replaceFirst(JwtUtils.TOKEN_SUCCESS, "");
+            if (!RefreshToken(userId)) {
+                return Result.logout();
+            }
+            InboundQuery query = JSON.parseObject(data, InboundQuery.class);
+
+            //查询当前供应商下预约单
+            BookingQuery bookingQuery = new BookingQuery();
+            bookingQuery.setFarmerId(userId);
+            List<BookingDTO> bookingDTOList = bookingService.queryNoPage(bookingQuery);
+
+            if (bookingDTOList != null && !CollectionUtils.isEmpty(bookingDTOList)) {
+                List<String> bookingIdList = bookingDTOList.stream().map(BookingDTO::getBookingId).collect(Collectors.toList());
+                //查询关系表,获取入库单ID列表
+                List<RelationDTO> relationDTOS = relationService.queryByBookingList(bookingIdList);
+                if (relationDTOS != null && !CollectionUtils.isEmpty(relationDTOS)) {
+                    List<String> inboundIdList = relationDTOS.stream().map(RelationDTO::getInboundId).collect(Collectors.toList());
+                    if (!CollectionUtils.isEmpty(inboundIdList)) {
+                        //查询入库单列表
+                        List<InboundDTO> inboundDTOList = inboundService.batchQuery(inboundIdList, query);
+                        if(inboundDTOList != null && !CollectionUtils.isEmpty(inboundDTOList)) {
+                            return Result.success(inboundDTOList.size());
+                        }
+                    }
+                }
+            }
+            return Result.success(0);
         } else {
             return Result.error("未查到身份信息");
         }

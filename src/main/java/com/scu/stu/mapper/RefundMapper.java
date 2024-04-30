@@ -4,7 +4,7 @@ import com.scu.stu.pojo.DO.RefundDO;
 import com.scu.stu.pojo.DO.RefundSubDO;
 import com.scu.stu.pojo.DO.queryParam.RefundQuery;
 import org.apache.ibatis.annotations.Mapper;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -20,4 +20,7 @@ public interface RefundMapper {
     boolean create(RefundDO refundDO);
 
     boolean createSub(List<RefundSubDO> refundSubDOList);
+
+    List<RefundDO> batchQuery(@Param("idList") List<String> idList, @Param("query") RefundQuery query);
+
 }

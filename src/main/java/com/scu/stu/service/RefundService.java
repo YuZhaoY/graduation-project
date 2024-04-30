@@ -14,6 +14,11 @@ public interface RefundService {
     List<RefundDTO> query(RefundQuery query);
 
     /**
+     * 批量查询
+     */
+    List<RefundDTO> batchQuery(List<String> refundIdList, RefundQuery query);
+
+    /**
      * 查询退供单总数
      */
     int total(RefundQuery query);

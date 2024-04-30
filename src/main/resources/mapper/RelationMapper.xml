@@ -134,4 +134,37 @@
             #{saleId}
         </foreach>
     </select>
+
+    <select id="batchQuery" resultMap="Relation">
+        select
+        <include refid="base" />
+        from relation
+        <where>
+            id in
+            <foreach collection="idList" item="id"  open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            <if test="query.replenishmentId != null and query.replenishmentId != ''">
+                and replenishment_id = #{query.replenishmentId}
+            </if>
+            <if test="query.saleId != null and query.saleId != ''">
+                and sale_id = #{saleId}
+            </if>
+            <if test="query.bookingId != null and query.bookingId !=''">
+                and booking_id = #{query.bookingId}
+            </if>
+            <if test="query.inboundId != null and query.inboundId !=''">
+                and inbound_id = #{query.inboundId}
+            </if>
+            <if test="query.payId != null and query.payId !=''">
+                and pay_id = #{query.payId}
+            </if>
+            <if test="query.refundId != null and query.refundId !=''">
+                and refund_id = #{query.refundId}
+            </if>
+            <if test="query.returnId != null and query.returnId !=''">
+                and return_id = #{query.returnId}
+            </if>
+        </where>
+    </select>
 </mapper>

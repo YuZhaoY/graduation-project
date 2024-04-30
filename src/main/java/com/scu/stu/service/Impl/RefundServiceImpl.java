@@ -10,6 +10,7 @@ import com.scu.stu.pojo.DO.RefundSubDO;
 import com.scu.stu.pojo.DO.RelationDO;
 import com.scu.stu.pojo.DO.queryParam.RefundQuery;
 import com.scu.stu.pojo.DO.queryParam.RelationQuery;
+import com.scu.stu.pojo.DTO.InboundDTO;
 import com.scu.stu.pojo.DTO.RefundDTO;
 import com.scu.stu.pojo.DTO.RefundSubDTO;
 import com.scu.stu.service.RefundService;
@@ -32,6 +33,22 @@ public class RefundServiceImpl implements RefundService {
     public List<RefundDTO> query(RefundQuery query) {
         PageHelper.startPage(query.getPage(), query.getLimit());
         List<RefundDO> refundDOList = refundMapper.query(query);
+        if(refundDOList != null && !CollectionUtils.isEmpty(refundDOList)){
+            List<RefundDTO> refundDTOList = refundDOList.stream().map(refundDO -> {
+                RefundDTO refundDTO = new RefundDTO();
+                BeanUtils.copyProperties(refundDO, refundDTO);
+                return refundDTO;
+            }).collect(Collectors.toList());
+            PageInfo<RefundDTO> pageInfo = new PageInfo<>(refundDTOList);
+            return pageInfo.getList();
+        }
+        return null;
+    }
+
+    @Override
+    public List<RefundDTO> batchQuery(List<String> refundIdList, RefundQuery query) {
+        PageHelper.startPage(query.getPage(), query.getLimit());
+        List<RefundDO> refundDOList = refundMapper.batchQuery(refundIdList, query);
         if(refundDOList != null && !CollectionUtils.isEmpty(refundDOList)){
             List<RefundDTO> refundDTOList = refundDOList.stream().map(refundDO -> {
                 RefundDTO refundDTO = new RefundDTO();

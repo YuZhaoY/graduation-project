@@ -13,6 +13,11 @@ public interface BookingService {
     List<BookingDTO> query(BookingQuery query);
 
     /**
+     * 不分页查询
+     */
+    List<BookingDTO> queryNoPage(BookingQuery query);
+
+    /**
      * 批量查
      */
     List<BookingDTO> batchQuery(List<String> bookingIdList);

@@ -24,4 +24,30 @@ public class DateUtils {
         SimpleDateFormat df = new SimpleDateFormat(format);
         return df.format(date);
     }
+
+    public static boolean isThisTime(Date time, String pattern) {
+        SimpleDateFormat sdf = new SimpleDateFormat(pattern);
+        String param = sdf.format(time);//参数时间
+        String now = sdf.format(new Date());//当前时间
+        if (param.equals(now)) {
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isLastYear(Date time) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
+        String param = sdf.format(time);//参数时间
+        String now = sdf.format(new Date());//当前时间
+        param = String.valueOf(Integer.parseInt(param) + 1);
+        if (param.equals(now)) {
+            return true;
+        }
+        return false;
+    }
+
+    public static Integer getMonth(Date time) {
+        SimpleDateFormat sdf = new SimpleDateFormat("MM");
+        return Integer.parseInt(sdf.format(time));
+    }
 }

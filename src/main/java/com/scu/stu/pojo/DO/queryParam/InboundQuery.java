@@ -16,7 +16,7 @@ public class InboundQuery {
     private int limit = 10;
 
     /**
-     * 退供单ID
+     * 入库单ID
      */
     private String inboundId;
 

@@ -49,6 +49,20 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    public List<BookingDTO> queryNoPage(BookingQuery query) {
+        List<BookingDO> bookingDOList = bookingMapper.query(query);
+        if(!CollectionUtils.isEmpty(bookingDOList)) {
+            List<BookingDTO> bookingDTOList = bookingDOList.stream().map(bookingDO -> {
+                BookingDTO bookingDTO = new BookingDTO();
+                BeanUtils.copyProperties(bookingDO, bookingDTO);
+                return bookingDTO;
+            }).collect(Collectors.toList());
+            return bookingDTOList;
+        }
+        return null;
+    }
+
+    @Override
     public List<BookingDTO> batchQuery(List<String> bookingIdList) {
         List<BookingDO> bookingDOList = bookingMapper.batchQuery(bookingIdList);
         if(!CollectionUtils.isEmpty(bookingDOList)) {

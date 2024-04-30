@@ -25,6 +25,11 @@ public interface RelationService {
     List<RelationDTO> queryBySaleIdList(List<String> saleIdList);
 
     /**
+     * 批量查询
+     */
+    List<RelationDTO> queryByIdListPage(List<Integer> idList, RelationQuery query);
+
+    /**
      * 查询总数
      */
     int total(RelationQuery query);

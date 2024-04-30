@@ -45,6 +45,22 @@ public class InboundServiceImpl implements InboundService {
     }
 
     @Override
+    public List<InboundDTO> batchQuery(List<String> inboundIdList, InboundQuery query) {
+        PageHelper.startPage(query.getPage(), query.getLimit());
+        List<InboundDO> inboundDOList = inboundMapper.batchQuery(inboundIdList, query);
+        if(inboundDOList != null && !CollectionUtils.isEmpty(inboundDOList)){
+            List<InboundDTO> inboundDTOList = inboundDOList.stream().map(inboundDO -> {
+                InboundDTO inboundDTO = new InboundDTO();
+                BeanUtils.copyProperties(inboundDO, inboundDTO);
+                return inboundDTO;
+            }).collect(Collectors.toList());
+            PageInfo<InboundDTO> pageInfo = new PageInfo<>(inboundDTOList);
+            return pageInfo.getList();
+        }
+        return null;
+    }
+
+    @Override
     public int total(InboundQuery query) {
         return inboundMapper.total(query);
     }

@@ -85,23 +85,17 @@ public class RelationController {
             if(saleDTOS != null && !CollectionUtils.isEmpty(saleDTOS)){
                 List<String> saleIdList = saleDTOS.stream().map(SaleDTO::getSaleId).collect(Collectors.toList());
                 List<RelationDTO> relationBySale = relationService.queryBySaleIdList(saleIdList);
-                List<RelationDTO> relationByQuery = relationService.query(query);
-                List<RelationDTO> result = new ArrayList<>();
-                for(RelationDTO relation : relationByQuery) {
-                    for(RelationDTO relation2 : relationBySale){
-                        if(relation.getId() == relation2.getId()){
-                            result.add(relation);
-                            break;
-                        }
+                if(relationBySale != null && !CollectionUtils.isEmpty(relationBySale)) {
+                    List<Integer> idList = relationBySale.stream().map(RelationDTO::getId).collect(Collectors.toList());
+                    List<RelationDTO> result = relationService.queryByIdListPage(idList, query);
+                    if (!CollectionUtils.isEmpty(result)) {
+                        List<RelationVO> relationVOList = result.stream().map(relationDTO -> {
+                            RelationVO relationVO = new RelationVO();
+                            BeanUtils.copyProperties(relationDTO, relationVO);
+                            return relationVO;
+                        }).collect(Collectors.toList());
+                        return Result.success(relationVOList);
                     }
-                }
-                if(!CollectionUtils.isEmpty(result)){
-                    List<RelationVO> relationVOList = result.stream().map(relationDTO -> {
-                        RelationVO relationVO = new RelationVO();
-                        BeanUtils.copyProperties(relationDTO, relationVO);
-                        return relationVO;
-                    }).collect(Collectors.toList());
-                    return Result.success(relationVOList);
                 }
             }
             return Result.success();
@@ -127,17 +121,13 @@ public class RelationController {
             if(saleDTOS != null && !CollectionUtils.isEmpty(saleDTOS)){
                 List<String> saleIdList = saleDTOS.stream().map(SaleDTO::getSaleId).collect(Collectors.toList());
                 List<RelationDTO> relationBySale = relationService.queryBySaleIdList(saleIdList);
-                List<RelationDTO> relationByQuery = relationService.query(query);
-                List<RelationDTO> result = new ArrayList<>();
-                for(RelationDTO relation : relationByQuery) {
-                     for(RelationDTO relation2 : relationBySale){
-                         if(relation.getId() == relation2.getId()){
-                             result.add(relation);
-                             break;
-                         }
-                     }
+                if(relationBySale != null && !CollectionUtils.isEmpty(relationBySale)) {
+                    List<Integer> idList = relationBySale.stream().map(RelationDTO::getId).collect(Collectors.toList());
+                    List<RelationDTO> result = relationService.queryByIdListPage(idList, query);
+                    if(result != null && !CollectionUtils.isEmpty(result)) {
+                        return Result.success(result.size());
+                    }
                 }
-                return Result.success(result.size());
             }
             return Result.success(0);
         } else {
